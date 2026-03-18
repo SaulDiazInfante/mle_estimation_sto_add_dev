@@ -6,8 +6,14 @@ module parameter_ml_estimation_mod
     use, intrinsic :: ieee_arithmetic, only: ieee_value
     use model_types_mod, only: dp
     use model_types_mod, only: parameter_estimates_t
+    use progress_reporting_mod, only: finalize_progress_tracker
+    use progress_reporting_mod, only: initialize_progress_tracker
+    use progress_reporting_mod, only: progress_tracker_t
+    use progress_reporting_mod, only: update_progress_tracker
     implicit none
     private
+
+    integer, parameter :: default_mle_progress_reports = 20
 
     public :: build_uniform_checkpoints
     public :: estimate_model_parameters
@@ -19,7 +25,7 @@ contains
     !> Estimates all model parameters from a complete state history.
     subroutine estimate_model_parameters(&
         state_history, time_step, interaction_matrix, eigenvalues, gamma, &
-        sigma_hat, beta_hat, theta_hat &
+        sigma_hat, beta_hat, theta_hat, report_progress &
     )
         real(dp), intent(in) :: state_history(:, :)
         real(dp), intent(in) :: time_step
@@ -29,6 +35,12 @@ contains
         real(dp), intent(out) :: sigma_hat
         real(dp), intent(out) :: beta_hat
         real(dp), intent(out) :: theta_hat
+        logical, intent(in), optional :: report_progress
+
+        logical :: report_mle_progress
+
+        report_mle_progress = .false.
+        if (present(report_progress)) report_mle_progress = report_progress
 
         call estimate_sigma_from_quadratic_variation(&
             &state_history, &
@@ -42,7 +54,7 @@ contains
             &time_step, &
             &interaction_matrix, &
             &eigenvalues, gamma, &
-            beta_hat, theta_hat &
+            beta_hat, theta_hat, report_progress=report_mle_progress &
         &)
     end subroutine estimate_model_parameters
 
@@ -98,7 +110,8 @@ contains
         &interaction_matrix, &
         &eigenvalues, gamma, &
         &beta_hat,&
-        &theta_hat &
+        &theta_hat, &
+        &report_progress &
     &)
         real(dp), intent(in) :: state_history(:, :)
         real(dp), intent(in) :: time_step
@@ -107,8 +120,13 @@ contains
         real(dp), intent(in) :: gamma
         real(dp), intent(out) :: beta_hat
         real(dp), intent(out) :: theta_hat
+        logical, intent(in), optional :: report_progress
 
         logical :: success
+        logical :: report_mle_progress
+
+        report_mle_progress = .false.
+        if (present(report_progress)) report_mle_progress = report_progress
         call solve_joint_mle_system(&
             &state_history, &
             &time_step, &
@@ -117,7 +135,8 @@ contains
             &gamma, &
             &beta_hat, &
             &theta_hat, &
-            &success &
+            &success, &
+            &report_progress=report_mle_progress &
         &)
 
         if (.not. success) then
@@ -240,7 +259,8 @@ contains
         &interaction_matrix, &
         &eigenvalues, &
         &gamma, &
-        &statistics &
+        &statistics, &
+        &report_progress &
     )
         real(dp), intent(in) :: state_history(:, :)
         real(dp), intent(in) :: time_step
@@ -248,6 +268,7 @@ contains
         real(dp), intent(in) :: eigenvalues(:)
         real(dp), intent(in) :: gamma
         real(dp), intent(out) :: statistics(5)
+        logical, intent(in), optional :: report_progress
 
         real(dp), allocatable :: coupled_state_history(:, :)
         real(dp), allocatable :: statistic_1(:)
@@ -258,12 +279,19 @@ contains
         real(dp), allocatable :: weight_1(:)
         real(dp), allocatable :: weight_2(:)
         real(dp), allocatable :: weight_3(:)
+        type(progress_tracker_t) :: progress_tracker
+        integer :: completed_work
+        integer :: completed_modes
         integer :: mode_index
         integer :: n_observations
         integer :: n_state
+        integer :: progress_interval
+        logical :: progress_enabled
 
         n_observations = size(state_history, 1)
         n_state = size(state_history, 2)
+        progress_enabled = .false.
+        if (present(report_progress)) progress_enabled = report_progress
 
         allocate (coupled_state_history(n_observations, n_state))
         allocate (statistic_1(n_state), statistic_2(n_state))
@@ -276,32 +304,48 @@ contains
             &transpose(interaction_matrix)&
         &)
 
+        completed_modes = 0
+        progress_interval = max( &
+            1, (n_state + default_mle_progress_reports - 1) / &
+            default_mle_progress_reports &
+        )
+        call initialize_progress_tracker(&
+            progress_tracker, "MLE statistics progress", n_state, &
+            default_mle_progress_reports, progress_enabled &
+        )
+
+        !$omp parallel do default(none) schedule(static) &
+        !$omp& shared(completed_modes, coupled_state_history, n_state, &
+        !$omp& progress_enabled, progress_interval, progress_tracker, &
+        !$omp& state_history, statistic_1, statistic_2, statistic_3, &
+        !$omp& statistic_4, statistic_5, time_step) &
+        !$omp& private(completed_work, mode_index)
         do mode_index = 1, n_state
-            call compute_ito_integral(&
+            call compute_mode_statistics(&
                 state_history(:, mode_index), &
-                state_history(:, mode_index), &
-                statistic_1(mode_index) &
-            )
-            call compute_ito_integral(&
                 coupled_state_history(:, mode_index), &
-                state_history(:, mode_index), &
-                statistic_2(mode_index) &
+                time_step, statistic_1(mode_index), statistic_2(mode_index), &
+                statistic_3(mode_index), statistic_4(mode_index), &
+                statistic_5(mode_index) &
             )
-            call compute_trapezoidal_integral(&
-                state_history(:, mode_index) * state_history(:, mode_index), &
-                time_step, statistic_3(mode_index) &
-            )
-            call compute_trapezoidal_integral(&
-                state_history(:, mode_index) * &
-                coupled_state_history(:, mode_index), &
-                time_step, statistic_4(mode_index) &
-            )
-            call compute_trapezoidal_integral(&
-                coupled_state_history(:, mode_index) * &
-                coupled_state_history(:, mode_index), &
-                time_step, statistic_5(mode_index) &
-            )
+
+            if (.not. progress_enabled) cycle
+
+            !$omp atomic capture
+            completed_modes = completed_modes + 1
+            completed_work = completed_modes
+            !$omp end atomic
+
+            if (completed_work == n_state .or. &
+                modulo(completed_work, progress_interval) == 0) then
+                !$omp critical(mle_statistics_progress)
+                call update_progress_tracker(progress_tracker, completed_work)
+                !$omp end critical(mle_statistics_progress)
+            end if
         end do
+        !$omp end parallel do
+
+        call finalize_progress_tracker(progress_tracker)
 
         weight_1 = eigenvalues**(1.0_dp + 2.0_dp * gamma)
         weight_2 = eigenvalues**(2.0_dp * gamma)
@@ -316,7 +360,7 @@ contains
 
     subroutine solve_joint_mle_system(&
         state_history, time_step, interaction_matrix, eigenvalues, gamma, &
-        beta_hat, theta_hat, success &
+        beta_hat, theta_hat, success, report_progress &
     )
         real(dp), intent(in) :: state_history(:, :)
         real(dp), intent(in) :: time_step
@@ -326,15 +370,20 @@ contains
         real(dp), intent(out) :: beta_hat
         real(dp), intent(out) :: theta_hat
         logical, intent(out) :: success
+        logical, intent(in), optional :: report_progress
 
         real(dp) :: denominator
         real(dp) :: scale
         real(dp) :: statistics(5)
         real(dp) :: tolerance
+        logical :: report_mle_progress
+
+        report_mle_progress = .false.
+        if (present(report_progress)) report_mle_progress = report_progress
 
         call compute_mle_statistics(&
             state_history, time_step, interaction_matrix, eigenvalues, gamma, &
-            statistics &
+            statistics, report_progress=report_mle_progress &
         )
 
         denominator = statistics(4)**2 - statistics(3) * statistics(5)
@@ -355,6 +404,36 @@ contains
         theta_hat = (statistics(2) * statistics(3) - &
             statistics(1) * statistics(4)) / denominator
     end subroutine solve_joint_mle_system
+
+    pure subroutine compute_mode_statistics(&
+        state_path, coupled_state_path, time_step, statistic_1_value, &
+        statistic_2_value, statistic_3_value, statistic_4_value, &
+        statistic_5_value &
+    )
+        real(dp), intent(in) :: state_path(:)
+        real(dp), intent(in) :: coupled_state_path(:)
+        real(dp), intent(in) :: time_step
+        real(dp), intent(out) :: statistic_1_value
+        real(dp), intent(out) :: statistic_2_value
+        real(dp), intent(out) :: statistic_3_value
+        real(dp), intent(out) :: statistic_4_value
+        real(dp), intent(out) :: statistic_5_value
+
+        call compute_ito_integral(state_path, state_path, statistic_1_value)
+        call compute_ito_integral(&
+            coupled_state_path, state_path, statistic_2_value &
+        )
+        call compute_trapezoidal_integral(&
+            state_path * state_path, time_step, statistic_3_value &
+        )
+        call compute_trapezoidal_integral(&
+            state_path * coupled_state_path, time_step, statistic_4_value &
+        )
+        call compute_trapezoidal_integral(&
+            coupled_state_path * coupled_state_path, time_step, &
+            statistic_5_value &
+        )
+    end subroutine compute_mode_statistics
 
     pure subroutine compute_ito_integral(integrand, process, integral_value)
         real(dp), intent(in) :: integrand(:)

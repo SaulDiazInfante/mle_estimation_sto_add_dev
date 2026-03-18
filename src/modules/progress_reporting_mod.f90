@@ -2,6 +2,7 @@
 !! @brief Console progress reporting utilities for long-running loops.
 !> @brief Maintains and redraws a single-line progress indicator with ETA.
 module progress_reporting_mod
+    use iso_fortran_env, only: int64
     use iso_fortran_env, only: output_unit
     use iso_fortran_env, only: real64
     implicit none
@@ -15,7 +16,7 @@ module progress_reporting_mod
         integer :: next_report = 0                    !!< Next completed-work threshold to report.
         integer :: report_interval = 0                !!< Spacing between progress updates.
         integer :: total_work = 0                     !!< Total number of work units in the task.
-        real(real64) :: start_time = 0.0_real64       !!< CPU time recorded at tracker initialization.
+        real(real64) :: start_time = 0.0_real64       !!< Wall time recorded at tracker initialization.
         character(len=:), allocatable :: label        !!< Human-readable task label.
     end type progress_tracker_t
 
@@ -46,7 +47,7 @@ contains
         )
         tracker%next_report = tracker%report_interval
 
-        call cpu_time(tracker%start_time)
+        tracker%start_time = read_wall_time_seconds()
         call write_progress_line(tracker, 0)
     end subroutine initialize_progress_tracker
 
@@ -101,6 +102,19 @@ contains
         value = (numerator + denominator - 1) / denominator
     end function ceiling_division
 
+    real(real64) function read_wall_time_seconds() result(seconds)
+        integer(int64) :: clock_count
+        integer(int64) :: clock_rate
+
+        call system_clock(clock_count, clock_rate)
+        if (clock_rate <= 0_int64) then
+            seconds = 0.0_real64
+            return
+        end if
+
+        seconds = real(clock_count, real64) / real(clock_rate, real64)
+    end function read_wall_time_seconds
+
     subroutine write_progress_line(tracker, completed_work)
         type(progress_tracker_t), intent(inout) :: tracker
         integer, intent(in) :: completed_work
@@ -113,7 +127,7 @@ contains
         integer :: current_line_length
         integer :: padding_length
 
-        call cpu_time(current_time)
+        current_time = read_wall_time_seconds()
         elapsed_seconds = current_time - tracker%start_time
 
         completion_fraction = 0.0_real64

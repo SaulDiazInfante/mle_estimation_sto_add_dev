@@ -3,6 +3,7 @@
 !! workflow.
 !> @brief Runs operator assembly, simulation, estimation, and CSV export.
 program max_likelihood_driver
+    use iso_fortran_env, only: int64
     use csv_output_mod, only: write_estimator_history_csv
     use csv_output_mod, only: write_state_history_csv
     use model_types_mod, only: dp
@@ -68,7 +69,7 @@ program max_likelihood_driver
         output_timestamp, default_estimator_history_name, estimator_history_file &
     )
 
-    call cpu_time(start_time)
+    start_time = read_wall_time_seconds()
     call assemble_problem_operators(grid, operators)
     call ensure_finite("initial_state", operators%initial_state)
     call ensure_finite("eigenvalues", operators%eigenvalues)
@@ -82,17 +83,17 @@ program max_likelihood_driver
         call write_state_history_csv(state_history_file, state_history)
         write (*, '(2a)') "Wrote state history to ", trim(state_history_file)
     end if
-    call cpu_time(finish_time)
+    finish_time = read_wall_time_seconds()
     estimates%setup_time = finish_time - start_time
 
-    call cpu_time(start_time)
+    start_time = read_wall_time_seconds()
     call estimate_model_parameters(&
         state_history, sde_parameters%time_step, &
         operators%interaction_matrix, operators%eigenvalues, &
         grid%gamma, estimates%sigma_hat, estimates%beta_hat, &
-        estimates%theta_hat &
+        estimates%theta_hat, report_progress=.true. &
     )
-    call cpu_time(finish_time)
+    finish_time = read_wall_time_seconds()
     estimates%estimation_time = finish_time - start_time
 
     call build_uniform_checkpoints(&
@@ -232,6 +233,19 @@ contains
             error stop
         end select
     end subroutine read_logical_env
+
+    real(dp) function read_wall_time_seconds()
+        integer(int64) :: clock_count
+        integer(int64) :: clock_rate
+
+        call system_clock(clock_count, clock_rate)
+        if (clock_rate <= 0_int64) then
+            read_wall_time_seconds = 0.0_dp
+            return
+        end if
+
+        read_wall_time_seconds = real(clock_count, dp) / real(clock_rate, dp)
+    end function read_wall_time_seconds
 
     subroutine read_string_env(name, value)
         character(len=*), intent(in) :: name

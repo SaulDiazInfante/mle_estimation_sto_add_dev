@@ -59,9 +59,9 @@ module model_types_mod
         real(dp) :: beta_hat = 0.0_dp        !!< Estimated dissipative 
                                              !!  coefficient.
         real(dp) :: theta_hat = 0.0_dp       !!< Estimated coupling coefficient.
-        real(dp) :: setup_time = 0.0_dp      !!< CPU time spent assembling and 
+        real(dp) :: setup_time = 0.0_dp      !!< Wall time spent assembling and
                                              !!  simulating.
-        real(dp) :: estimation_time = 0.0_dp !!< CPU time spent in the 
+        real(dp) :: estimation_time = 0.0_dp !!< Wall time spent in the
                                              !!  estimation stage.
     end type parameter_estimates_t
 

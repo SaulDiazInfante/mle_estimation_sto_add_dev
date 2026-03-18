@@ -17,6 +17,7 @@ gfortran \
     -I "$BUILD_DIR/mod" \
     "$ROOT_DIR/tests/unit/test_core.f90" \
     "$BUILD_DIR/obj/model_types_mod.o" \
+    "$BUILD_DIR/obj/progress_reporting_mod.o" \
     "$BUILD_DIR/obj/parameter_ml_estimation_mod.o" \
     -o "$TEST_BIN"
 
