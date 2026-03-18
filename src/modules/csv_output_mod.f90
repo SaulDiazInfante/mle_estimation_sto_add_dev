@@ -1,3 +1,6 @@
+!> @file csv_output_mod.f90
+!! @brief CSV writers for generated trajectories and parameter estimates.
+!> @brief Encapsulates the text output format used by downstream plotting scripts.
 module csv_output_mod
     use model_types_mod, only: dp
     implicit none
@@ -8,6 +11,7 @@ module csv_output_mod
 
 contains
 
+    !> Writes the simulated modal state history to a CSV file.
     subroutine write_state_history_csv(file_name, state_history)
         character(len=*), intent(in) :: file_name
         real(dp), intent(in) :: state_history(:, :)
@@ -37,6 +41,7 @@ contains
         close (unit_id)
     end subroutine write_state_history_csv
 
+    !> Writes time-indexed parameter estimates and their reference values to CSV.
     subroutine write_estimator_history_csv(&
         file_name, observation_counts, times, sigma_history, beta_history, &
         theta_history, sigma_true, beta_true, theta_true &

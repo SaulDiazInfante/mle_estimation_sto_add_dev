@@ -1,9 +1,12 @@
+!> @file aditive_v2_fortran_nomkl.f90
+!! @brief Legacy single-file executable without MKL or external BLAS dependencies.
 !===========================================================================
 ! File: aditive_v2_fortran_nomkl.f90
 !
 ! Build (no MKL / no external BLAS required):
 !   gfortran -O3 -fopenmp aditive_v2_fortran_nomkl.f90 -o b.out
 !===========================================================================
+!> @brief Legacy standalone executable retained for reference and comparison.
 program multivariate
     use ieee_arithmetic, only: ieee_is_nan, ieee_is_finite
     implicit none

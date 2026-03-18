@@ -1,3 +1,6 @@
+!> @file spectral_operators_mod.f90
+!! @brief Assembly of spectral operators, mode ordering, and initial conditions.
+!> @brief Builds the modal representation needed by the solver and estimator.
 module spectral_operators_mod
     use model_types_mod, only: dp
     use model_types_mod, only: get_state_dimension
@@ -12,6 +15,7 @@ module spectral_operators_mod
 
 contains
 
+    !> Builds eigenvalues, diffusion terms, interactions, and the initial modal state.
     subroutine assemble_problem_operators(grid, operators)
         type(spatial_grid_t), intent(in) :: grid
         type(spectral_operator_set_t), intent(out) :: operators

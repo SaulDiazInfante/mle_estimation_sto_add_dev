@@ -18,6 +18,7 @@
 - `visualization/plots/`: generated figures.
 - `tests/`: unit and smoke tests, plus ignored test artifacts.
 - `build/`: compiler outputs, module files, objects, and binaries.
+- `docs/Doxyfile`: Doxygen configuration for the generated API/reference site.
 - `.github/workflows/`: CI for pull requests and release automation for version tags.
 
 ## TDD and CI direction
@@ -26,4 +27,4 @@
 - Fast smoke coverage is preferred in CI; heavy numerical experiments should stay opt-in.
 - Runtime parameters are controlled through environment variables so tests can be small and deterministic.
 - Generated CSV and PNG artifacts use an ISO 8601 timestamp prefix so simulation runs stay traceable.
-- The GitHub Actions workflows mirror local usage through `make build`, `make test`, and tagged release packaging.
+- The GitHub Actions workflows mirror local usage through `make build`, `make test`, `make docs`, and tagged release packaging.

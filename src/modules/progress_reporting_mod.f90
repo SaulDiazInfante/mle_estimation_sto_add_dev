@@ -1,18 +1,22 @@
+!> @file progress_reporting_mod.f90
+!! @brief Console progress reporting utilities for long-running loops.
+!> @brief Maintains and redraws a single-line progress indicator with ETA.
 module progress_reporting_mod
     use iso_fortran_env, only: output_unit
     use iso_fortran_env, only: real64
     implicit none
     private
 
+    !> Mutable state used to report progress for a single loop or task.
     type, public :: progress_tracker_t
-        logical :: active_line = .false.
-        logical :: enabled = .false.
-        integer :: last_line_length = 0
-        integer :: next_report = 0
-        integer :: report_interval = 0
-        integer :: total_work = 0
-        real(real64) :: start_time = 0.0_real64
-        character(len=:), allocatable :: label
+        logical :: active_line = .false.              !!< Tracks whether an in-place line is active.
+        logical :: enabled = .false.                  !!< Enables or disables all output.
+        integer :: last_line_length = 0               !!< Width of the most recent rendered line.
+        integer :: next_report = 0                    !!< Next completed-work threshold to report.
+        integer :: report_interval = 0                !!< Spacing between progress updates.
+        integer :: total_work = 0                     !!< Total number of work units in the task.
+        real(real64) :: start_time = 0.0_real64       !!< CPU time recorded at tracker initialization.
+        character(len=:), allocatable :: label        !!< Human-readable task label.
     end type progress_tracker_t
 
     public :: finalize_progress_tracker
@@ -21,6 +25,7 @@ module progress_reporting_mod
 
 contains
 
+    !> Initializes a tracker and optionally prints an initial 0% progress line.
     subroutine initialize_progress_tracker(&
         tracker, label, total_work, report_count, enabled &
     )
@@ -45,6 +50,7 @@ contains
         call write_progress_line(tracker, 0)
     end subroutine initialize_progress_tracker
 
+    !> Updates the tracker when the number of completed work units increases.
     subroutine update_progress_tracker(tracker, completed_work)
         type(progress_tracker_t), intent(inout) :: tracker
         integer, intent(in) :: completed_work
@@ -71,6 +77,7 @@ contains
         end if
     end subroutine update_progress_tracker
 
+    !> Finalizes the tracker and terminates the single-line progress output.
     subroutine finalize_progress_tracker(tracker)
         type(progress_tracker_t), intent(inout) :: tracker
 

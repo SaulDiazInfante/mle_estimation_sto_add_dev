@@ -33,6 +33,8 @@ git push -u origin main
 
 - Set the default branch to `main`.
 - Protect `main` and require the `CI / build-and-test` status check before merge.
+- Enable GitHub Pages and set the source to GitHub Actions so the `Docs` workflow can publish the Doxygen site.
+- If the repository is private, make sure your GitHub plan supports Pages for private repositories. GitHub Free supports Pages for public repositories only.
 - Require pull requests for changes to `main`.
 - Require at least one approving review if you are collaborating with others.
 - Enable GitHub Actions for the repository.

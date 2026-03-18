@@ -20,6 +20,7 @@ This repository contains the maintained Fortran implementation for simulating th
 - `make build`: compile the maintained application into `build/bin/`.
 - `make run`: run the default workflow and write timestamped outputs under `data/output/`.
 - `make plot`: plot the latest generated estimator CSV already present in `data/output/`.
+- `make docs`: build the Doxygen HTML site locally under `build/docs/doxygen/html`.
 - `make test`: run the repository smoke test used by CI.
 - `make test-unit`: run deterministic unit tests.
 - `make test-smoke`: run the end-to-end smoke test only.
@@ -70,7 +71,8 @@ Run `make setup-git-hooks` once per clone to activate the local pre-commit size 
 ## GitHub workflow
 
 - CI runs on pull requests and pushes to `main`.
+- Doxygen documentation is built on pull requests and published to GitHub Pages from `main`.
 - Tagged releases like `v0.1.0` publish a Linux build artifact through GitHub Releases.
 - Contribution templates and issue forms are included under `.github/`.
 
-See [docs/github_publish.md](/home/saul/Desktop/2026_SargazoMLDE/mle_estimation_sto_add_dev/docs/github_publish.md) for the exact publish steps and [docs/testing_strategy.md](/home/saul/Desktop/2026_SargazoMLDE/mle_estimation_sto_add_dev/docs/testing_strategy.md) for the TDD-oriented test layout.
+See [docs/github_publish.md](docs/github_publish.md) for the exact publish steps and [docs/testing_strategy.md](docs/testing_strategy.md) for the TDD-oriented test layout.

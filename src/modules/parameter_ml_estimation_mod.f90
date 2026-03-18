@@ -1,3 +1,6 @@
+!> @file parameter_ml_estimation_mod.f90
+!! @brief Maximum-likelihood estimation routines for the spectral SDE model.
+!> @brief Estimates drift and diffusion parameters from simulated state histories.
 module parameter_ml_estimation_mod
     use, intrinsic :: ieee_arithmetic, only: ieee_quiet_nan
     use, intrinsic :: ieee_arithmetic, only: ieee_value
@@ -13,6 +16,7 @@ module parameter_ml_estimation_mod
 
 contains
 
+    !> Estimates all model parameters from a complete state history.
     subroutine estimate_model_parameters(&
         state_history, time_step, interaction_matrix, eigenvalues, gamma, &
         sigma_hat, beta_hat, theta_hat &
@@ -102,6 +106,7 @@ contains
         end if
     end subroutine estimate_joint_drift_parameters
 
+    !> Builds evenly distributed observation checkpoints for trajectory summaries.
     subroutine build_uniform_checkpoints(&
         total_points, requested_points, minimum_points, checkpoints &
     )
@@ -147,6 +152,7 @@ contains
         end do
     end subroutine build_uniform_checkpoints
 
+    !> Computes the parameter estimates at several observation checkpoints.
     subroutine estimate_parameter_history(&
         state_history, time_step, interaction_matrix, eigenvalues, gamma, &
         checkpoints, times, sigma_history, beta_history, theta_history &
@@ -363,6 +369,7 @@ contains
         )
     end subroutine compute_trapezoidal_integral
 
+    !> Prints a formatted report comparing true and estimated parameter values.
     subroutine print_estimation_report(&
         sigma_true, beta_true, theta_true, estimates &
     )

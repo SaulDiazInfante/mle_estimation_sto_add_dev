@@ -1,3 +1,6 @@
+!> @file test_core.f90
+!! @brief Small deterministic unit tests for core helper routines.
+!> @brief Exercises basic derived-type and checkpoint helper behavior.
 program test_core
     use model_types_mod, only: spatial_grid_t
     use model_types_mod, only: get_state_dimension

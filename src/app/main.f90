@@ -1,3 +1,6 @@
+!> @file main.f90
+!! @brief Command-line entry point for the maintained simulation and estimation workflow.
+!> @brief Runs operator assembly, simulation, estimation, and CSV export.
 program max_likelihood_driver
     use csv_output_mod, only: write_estimator_history_csv
     use csv_output_mod, only: write_state_history_csv

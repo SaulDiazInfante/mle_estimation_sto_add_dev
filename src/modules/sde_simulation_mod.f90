@@ -1,3 +1,6 @@
+!> @file sde_simulation_mod.f90
+!! @brief Time integration and random sampling for the spectral SDE model.
+!> @brief Simulates state trajectories and random-number initialization.
 module sde_simulation_mod
     use model_types_mod, only: dp
     use model_types_mod, only: sde_parameters_t
@@ -18,6 +21,7 @@ module sde_simulation_mod
 
 contains
 
+    !> Initializes the intrinsic Fortran RNG from a scalar seed.
     subroutine set_random_seed(seed_value)
         integer, intent(in) :: seed_value
 
@@ -37,6 +41,7 @@ contains
         call random_seed(put=seed_values)
     end subroutine set_random_seed
 
+    !> Simulates the full modal state history with Euler-Maruyama time stepping.
     subroutine simulate_state_history(&
         operators, parameters, state_history &
     )

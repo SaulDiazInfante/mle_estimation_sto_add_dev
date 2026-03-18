@@ -1,3 +1,8 @@
+!> @file aditive_v2_fortran_modular.f90
+!! @brief Legacy single-file modular reference implementation.
+!!
+!! The maintained implementation now lives under `src/` and is the version used
+!! by the build system. This file is preserved for historical comparison.
 !===========================================================================
 ! File: aditive_v2_fortran_modular.f90
 !
@@ -8,6 +13,7 @@
 ! Build:
 !   gfortran -std=f2008 -O3 aditive_v2_fortran_modular.f90 -o modular.out
 !===========================================================================
+!> @brief Legacy consolidated modular implementation kept for reference.
 module model_types
     use iso_fortran_env, only: real64
     implicit none
