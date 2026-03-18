@@ -24,6 +24,7 @@ DOCS_HTML_DIR := $(DOCS_DIR)/html
 
 MODULE_SRC := \
 	$(MODULE_DIR)/model_types_mod.f90 \
+	$(MODULE_DIR)/driver_support_mod.f90 \
 	$(MODULE_DIR)/validation_mod.f90 \
 	$(MODULE_DIR)/csv_output_mod.f90 \
 	$(MODULE_DIR)/spectral_operators_mod.f90 \
@@ -34,6 +35,7 @@ MAIN_SRC := $(APP_DIR)/main.f90
 SRC := $(MODULE_SRC) $(MAIN_SRC)
 OBJ := \
 	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/driver_support_mod.o \
 	$(OBJ_DIR)/validation_mod.o \
 	$(OBJ_DIR)/csv_output_mod.o \
 	$(OBJ_DIR)/spectral_operators_mod.o \
@@ -92,12 +94,14 @@ $(OBJ_DIR)/%.o: $(MODULE_DIR)/%.f90 | $(OBJ_DIR) $(MOD_DIR)
 
 $(OBJ_DIR)/main.o: \
 	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/driver_support_mod.o \
 	$(OBJ_DIR)/validation_mod.o \
 	$(OBJ_DIR)/csv_output_mod.o \
 	$(OBJ_DIR)/spectral_operators_mod.o \
 	$(OBJ_DIR)/progress_reporting_mod.o \
 	$(OBJ_DIR)/sde_simulation_mod.o \
 	$(OBJ_DIR)/parameter_ml_estimation_mod.o
+$(OBJ_DIR)/driver_support_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/validation_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/csv_output_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/spectral_operators_mod.o: $(OBJ_DIR)/model_types_mod.o
