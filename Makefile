@@ -1,6 +1,7 @@
 FC = gfortran
 FFLAGS ?= -std=f2008 -O3 -Wall -Wextra -Wimplicit-interface
 PYTHON ?= python3
+DOXYGEN ?= doxygen
 TIMESTAMP ?= $(shell date '+%Y-%m-%dT%H:%M:%S')
 LATEST_ESTIMATOR_PATTERN := *_estimator_trajectory.csv
 
@@ -16,6 +17,9 @@ TARGET := $(BIN_DIR)/multivariate_modular
 DATA_OUTPUT_DIR := data/output
 PLOT_DIR := visualization/plots
 PLOT_SCRIPT := visualization/scripts/plot_estimator_trajectory.py
+DOXYFILE := docs/Doxyfile
+DOCS_DIR := $(BUILD_DIR)/docs/doxygen
+DOCS_HTML_DIR := $(DOCS_DIR)/html
 
 MODULE_SRC := \
 	$(MODULE_DIR)/model_types_mod.f90 \
@@ -37,7 +41,7 @@ OBJ := \
 	$(OBJ_DIR)/parameter_ml_estimation_mod.o \
 	$(OBJ_DIR)/main.o
 
-.PHONY: all build run plot test test-smoke test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run plot docs test test-smoke test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
@@ -53,6 +57,12 @@ plot: | $(PLOT_DIR)
 		exit 1; \
 	fi; \
 	$(PYTHON) $(PLOT_SCRIPT) --input "$$latest_file"
+
+docs:
+	mkdir -p $(DOCS_DIR)
+	$(DOXYGEN) $(DOXYFILE)
+	@test -d $(DOCS_HTML_DIR) || { echo "Error: Doxygen did not produce $(DOCS_HTML_DIR)"; exit 1; }
+	touch $(DOCS_HTML_DIR)/.nojekyll
 
 test: build
 	tests/run_unit_tests.sh

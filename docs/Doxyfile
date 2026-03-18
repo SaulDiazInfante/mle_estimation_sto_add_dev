@@ -40,7 +40,7 @@ SHOW_NAMESPACES        = YES
 
 WARN_IF_UNDOCUMENTED   = NO
 WARN_AS_ERROR          = NO
-QUIET                  = YES
+QUIET                  = NO
 
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
