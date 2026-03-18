@@ -104,7 +104,7 @@ program max_likelihood_driver
         state_history, sde_parameters%time_step, &
         operators%interaction_matrix, operators%eigenvalues, &
         grid%gamma, checkpoints, times, sigma_history, beta_history, &
-        theta_history &
+        theta_history, report_progress=.true. &
     )
     call write_estimator_history_csv(&
         estimator_history_file, checkpoints, times, sigma_history, &
