@@ -13,6 +13,7 @@ make -C "$ROOT_DIR" build
 gfortran \
     -std=f2008 \
     -Wall -Wextra -Wimplicit-interface \
+    -fopenmp \
     -I "$BUILD_DIR/mod" \
     "$ROOT_DIR/tests/unit/test_core.f90" \
     "$BUILD_DIR/obj/model_types_mod.o" \

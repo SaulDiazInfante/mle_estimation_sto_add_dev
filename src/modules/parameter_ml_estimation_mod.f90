@@ -31,17 +31,28 @@ contains
         real(dp), intent(out) :: theta_hat
 
         call estimate_sigma_from_quadratic_variation(&
-            state_history, time_step, eigenvalues, gamma, sigma_hat &
-        )
+            &state_history, &
+            &time_step, &
+            &eigenvalues, &
+            &gamma, &
+            &sigma_hat &
+        &)
         call estimate_joint_drift_parameters(&
-            state_history, time_step, interaction_matrix, eigenvalues, gamma, &
+            &state_history, &
+            &time_step, &
+            &interaction_matrix, &
+            &eigenvalues, gamma, &
             beta_hat, theta_hat &
-        )
+        &)
     end subroutine estimate_model_parameters
 
     subroutine estimate_sigma_from_quadratic_variation(&
-        state_history, time_step, eigenvalues, gamma, sigma_hat &
-    )
+        &state_history, &
+        &time_step, &
+        &eigenvalues, &
+        &gamma, &
+        &sigma_hat &
+    &)
         real(dp), intent(in) :: state_history(:, :)
         real(dp), intent(in) :: time_step
         real(dp), intent(in) :: eigenvalues(:)
@@ -249,6 +260,10 @@ contains
 
         coupled_state_history = matmul(state_history, transpose(interaction_matrix))
 
+        !$omp parallel do default(none) schedule(static) &
+        !$omp& shared(n_state, state_history, coupled_state_history, &
+        !$omp& time_step, statistic_1, statistic_2, statistic_3, &
+        !$omp& statistic_4, statistic_5) private(mode_index)
         do mode_index = 1, n_state
             call compute_ito_integral(&
                 state_history(:, mode_index), &
@@ -275,6 +290,7 @@ contains
                 time_step, statistic_5(mode_index) &
             )
         end do
+        !$omp end parallel do
 
         weight_1 = eigenvalues**(1.0_dp + 2.0_dp * gamma)
         weight_2 = eigenvalues**(2.0_dp * gamma)

@@ -1,5 +1,6 @@
 FC = gfortran
 FFLAGS ?= -std=f2008 -O3 -Wall -Wextra -Wimplicit-interface
+OMPFLAGS ?= -fopenmp
 PYTHON ?= python3
 DOXYGEN ?= doxygen
 TIMESTAMP ?= $(shell date '+%Y%m%dT%H%M%S')
@@ -81,13 +82,13 @@ setup-git-hooks:
 	git config core.hooksPath .githooks
 
 $(TARGET): $(OBJ) | $(BIN_DIR)
-	$(FC) $(FFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $(OBJ)
+	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $(OBJ)
 
 $(OBJ_DIR)/main.o: $(MAIN_SRC) | $(OBJ_DIR) $(MOD_DIR)
-	$(FC) $(FFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -c $< -o $@
+	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(MODULE_DIR)/%.f90 | $(OBJ_DIR) $(MOD_DIR)
-	$(FC) $(FFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -c $< -o $@
+	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -c $< -o $@
 
 $(OBJ_DIR)/main.o: \
 	$(OBJ_DIR)/model_types_mod.o \
