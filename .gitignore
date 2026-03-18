@@ -1,12 +1,29 @@
+# Repository policy:
+# Track source, docs, configs, and small deterministic test inputs only.
+# Do not track generated outputs, local/raw data, build products, or release bundles.
+
 build/
 *.o
 *.mod
 multivariate_modular
 release/
 *.tar.gz
+tmp/
+scratch/
+*.log
+*.tmp
+*.swp
+*.swo
 
 data/output/*
 !data/output/.gitkeep
+
+# Keep input placeholders in git, but keep local/raw data outside version control.
+data/input/local/**
+data/input/raw/**
+data/input/cache/**
+!data/input/.gitkeep
+!data/input/README.md
 
 visualization/plots/*
 !visualization/plots/.gitkeep
@@ -17,3 +34,5 @@ tests/artifacts/*
 __pycache__/
 *.pyc
 .vscode/
+.idea/
+.DS_Store

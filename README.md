@@ -23,6 +23,8 @@ This repository contains the maintained Fortran implementation for simulating th
 - `make test`: run the repository smoke test used by CI.
 - `make test-unit`: run deterministic unit tests.
 - `make test-smoke`: run the end-to-end smoke test only.
+- `make check-large-files`: fail if tracked files exceed the repository size policy.
+- `make setup-git-hooks`: enable the tracked pre-commit hook path for this clone.
 - `make clean`: remove build products and timestamped CSV/PNG outputs.
 
 Generated filenames use an ISO 8601-style timestamp prefix, for example
@@ -55,6 +57,15 @@ Long simulations print progress updates from the time-stepping loop at regular
 checkpoints so you can monitor the run while it is executing.
 
 `make test` runs both the unit-test layer and the fast smoke test used by CI.
+
+## Git tracking policy
+
+- Keep source code, docs, CI config, and small deterministic tests in git.
+- Keep generated outputs in `data/output/`, `visualization/plots/`, and `tests/artifacts/`, which are ignored.
+- Keep local or raw input data in the ignored paths under `data/input/`.
+- The repository includes a size guard that rejects staged files larger than `50 MB` by default.
+
+Run `make setup-git-hooks` once per clone to activate the local pre-commit size check.
 
 ## GitHub workflow
 

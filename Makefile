@@ -37,7 +37,7 @@ OBJ := \
 	$(OBJ_DIR)/parameter_ml_estimation_mod.o \
 	$(OBJ_DIR)/main.o
 
-.PHONY: all build run plot test test-smoke test-unit clean distclean
+.PHONY: all build run plot test test-smoke test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
@@ -63,6 +63,12 @@ test-unit: build
 
 test-smoke: build
 	tests/smoke_test.sh
+
+check-large-files:
+	scripts/check_large_files.sh tracked
+
+setup-git-hooks:
+	git config core.hooksPath .githooks
 
 $(TARGET): $(OBJ) | $(BIN_DIR)
 	$(FC) $(FFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $(OBJ)

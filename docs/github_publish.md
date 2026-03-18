@@ -8,6 +8,7 @@ Run these commands from the repository root:
 
 ```bash
 git init -b main
+make setup-git-hooks
 git add .
 git commit -m "Initial project import"
 ```
@@ -54,6 +55,12 @@ That tag triggers the release workflow, which builds the project, runs tests, pa
 - Open the pull request only after `make test` passes locally.
 - Use the smoke and unit test output in CI as the merge gate.
 - Keep issue descriptions focused on observable behavior so tests can be written first.
+
+## Large file policy
+
+- Keep generated outputs and local datasets out of git.
+- Run `make check-large-files` before large refactors or imports.
+- The local pre-commit hook and CI both enforce the tracked-file size policy.
 
 ## One open decision
 

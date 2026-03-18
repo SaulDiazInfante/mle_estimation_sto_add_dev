@@ -26,6 +26,9 @@ jobs:
       - name: Clean
         run: make distclean
 
+      - name: Check tracked file sizes
+        run: make check-large-files
+
       - name: Verify build and tests
         run: make test
 
