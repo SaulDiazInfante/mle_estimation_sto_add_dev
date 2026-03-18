@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran python3 python3-matplotlib
+
+      - name: Clean
+        run: make distclean
+
+      - name: Verify build and tests
+        run: make test
+
+      - name: Build release binary
+        run: make build
+
+      - name: Package Linux artifact
+        run: |
+          mkdir -p release
+          cp build/bin/multivariate_modular release/
+          cp README.md release/
+          tar -czf sargazo-ml-estimation-${{ github.ref_name }}-linux-x86_64.tar.gz -C release .
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sargazo-ml-estimation-${{ github.ref_name }}-linux-x86_64.tar.gz

@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a defect with enough detail to reproduce it and write a test for it.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include commands, inputs, or configuration values.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test idea
+      description: How could this bug be captured in a unit or smoke test?
