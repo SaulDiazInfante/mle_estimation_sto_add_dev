@@ -1,0 +1,57 @@
+PROJECT_NAME           = "Sargazo ML Estimation"
+PROJECT_BRIEF          = "Fortran tools for SDE simulation, parameter estimation, and trajectory visualization."
+OUTPUT_DIRECTORY       = build/docs/doxygen
+OUTPUT_LANGUAGE        = English
+USE_MDFILE_AS_MAINPAGE = docs/doxygen_mainpage.md
+
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+JAVADOC_AUTOBRIEF      = YES
+OPTIMIZE_FOR_FORTRAN   = YES
+EXTENSION_MAPPING      = f90=FortranFree
+
+INPUT                  = src \
+                         legacy \
+                         tests/unit \
+                         README.md \
+                         CONTRIBUTING.md \
+                         docs/doxygen_mainpage.md \
+                         docs/repository_layout.md \
+                         docs/testing_strategy.md \
+                         docs/github_publish.md
+FILE_PATTERNS          = *.f90 \
+                         *.md
+RECURSIVE              = YES
+EXCLUDE                = build \
+                         data/output \
+                         visualization/plots \
+                         tests/artifacts
+EXCLUDE_PATTERNS       = */.git/*
+STRIP_FROM_PATH        = .
+
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+HIDE_SCOPE_NAMES       = NO
+SHOW_FILES             = YES
+SHOW_NAMESPACES        = YES
+
+WARN_IF_UNDOCUMENTED   = NO
+WARN_AS_ERROR          = NO
+QUIET                  = YES
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_TREEVIEW      = YES
+FULL_PATH_NAMES        = YES
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+
+GENERATE_LATEX         = NO
+
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
