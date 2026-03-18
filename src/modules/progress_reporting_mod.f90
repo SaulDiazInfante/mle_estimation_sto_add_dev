@@ -8,6 +8,8 @@ module progress_reporting_mod
     implicit none
     private
 
+    integer, parameter :: progress_bar_width = 24
+
     !> Mutable state used to report progress for a single loop or task.
     type, public :: progress_tracker_t
         logical :: active_line = .false.              !!< Tracks whether an in-place line is active.
@@ -83,9 +85,9 @@ contains
         type(progress_tracker_t), intent(inout) :: tracker
 
         if (.not. tracker%enabled) return
-        if (tracker%next_report > tracker%total_work) return
-
-        call update_progress_tracker(tracker, tracker%total_work)
+        if (tracker%next_report <= tracker%total_work) then
+            call update_progress_tracker(tracker, tracker%total_work)
+        end if
 
         if (tracker%active_line) then
             write (output_unit, '()')
@@ -119,12 +121,14 @@ contains
         type(progress_tracker_t), intent(inout) :: tracker
         integer, intent(in) :: completed_work
 
-        character(len=160) :: progress_line
+        character(len=200) :: progress_line
+        character(len=progress_bar_width) :: progress_bar
         real(real64) :: completion_fraction
         real(real64) :: current_time
         real(real64) :: elapsed_seconds
         real(real64) :: eta_seconds
         integer :: current_line_length
+        integer :: filled_segments
         integer :: padding_length
 
         current_time = read_wall_time_seconds()
@@ -144,10 +148,17 @@ contains
             end if
         end if
 
-        write (progress_line, '(a,": ",f6.2,a,1x,"(",i0,"/",i0,")",1x,'// &
-            '"elapsed ",f8.2," s",1x,"eta ",f8.2," s")') &
-            trim(tracker%label), 100.0_real64 * completion_fraction, "%", &
-            completed_work, tracker%total_work, elapsed_seconds, eta_seconds
+        filled_segments = int(completion_fraction * real(progress_bar_width, real64))
+        filled_segments = max(0, min(progress_bar_width, filled_segments))
+        progress_bar = repeat('#', filled_segments) // &
+            repeat('-', progress_bar_width - filled_segments)
+
+        write (progress_line, '(a,1x,"[",a,"]",1x,f6.2,a,2x,'// &
+            '"(",i0,"/",i0,")",2x,"elapsed ",f7.2," s",2x,'// &
+            '"eta ",f7.2," s")') &
+            trim(tracker%label), progress_bar, &
+            100.0_real64 * completion_fraction, "%", completed_work, &
+            tracker%total_work, elapsed_seconds, eta_seconds
 
         current_line_length = len_trim(progress_line)
         padding_length = max(0, tracker%last_line_length - current_line_length)
