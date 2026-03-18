@@ -13,6 +13,7 @@ module parameter_ml_estimation_mod
     implicit none
     private
 
+    integer, parameter :: default_history_progress_reports = 20
     integer, parameter :: default_mle_progress_reports = 20
 
     public :: build_uniform_checkpoints
@@ -194,7 +195,8 @@ contains
     !> Computes the parameter estimates at several observation checkpoints.
     subroutine estimate_parameter_history(&
         state_history, time_step, interaction_matrix, eigenvalues, gamma, &
-        checkpoints, times, sigma_history, beta_history, theta_history &
+        checkpoints, times, sigma_history, beta_history, theta_history, &
+        report_progress &
     )
         real(dp), intent(in) :: state_history(:, :)
         real(dp), intent(in) :: time_step
@@ -206,20 +208,32 @@ contains
         real(dp), allocatable, intent(out) :: sigma_history(:)
         real(dp), allocatable, intent(out) :: beta_history(:)
         real(dp), allocatable, intent(out) :: theta_history(:)
+        logical, intent(in), optional :: report_progress
 
         integer :: checkpoint_index
+        integer :: n_checkpoints
         real(dp) :: not_a_number
         integer :: n_observations_at_checkpoint
+        logical :: report_history_progress
         logical :: success
+        type(progress_tracker_t) :: progress_tracker
 
-        allocate (times(size(checkpoints)))
-        allocate (sigma_history(size(checkpoints)))
-        allocate (beta_history(size(checkpoints)))
-        allocate (theta_history(size(checkpoints)))
+        n_checkpoints = size(checkpoints)
+        report_history_progress = .false.
+        if (present(report_progress)) report_history_progress = report_progress
+
+        allocate (times(n_checkpoints))
+        allocate (sigma_history(n_checkpoints))
+        allocate (beta_history(n_checkpoints))
+        allocate (theta_history(n_checkpoints))
 
         not_a_number = ieee_value(0.0_dp, ieee_quiet_nan)
+        call initialize_progress_tracker(&
+            progress_tracker, "Estimator history progress", n_checkpoints, &
+            default_history_progress_reports, report_history_progress &
+        )
 
-        do checkpoint_index = 1, size(checkpoints)
+        do checkpoint_index = 1, n_checkpoints
             n_observations_at_checkpoint = checkpoints(checkpoint_index)
 
             if (n_observations_at_checkpoint < 2 .or. &
@@ -250,7 +264,11 @@ contains
                 beta_history(checkpoint_index) = not_a_number
                 theta_history(checkpoint_index) = not_a_number
             end if
+
+            call update_progress_tracker(progress_tracker, checkpoint_index)
         end do
+
+        call finalize_progress_tracker(progress_tracker)
     end subroutine estimate_parameter_history
 
     subroutine compute_mle_statistics(&
