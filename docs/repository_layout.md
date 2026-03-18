@@ -26,5 +26,5 @@
 - New features should start with a failing test under `tests/` whenever practical.
 - Fast smoke coverage is preferred in CI; heavy numerical experiments should stay opt-in.
 - Runtime parameters are controlled through environment variables so tests can be small and deterministic.
-- Generated CSV and PNG artifacts use an ISO 8601 timestamp prefix so simulation runs stay traceable.
+- Generated CSV and PNG artifacts use a filesystem-safe ISO 8601 basic timestamp prefix so simulation runs stay traceable across local environments and CI artifacts.
 - The GitHub Actions workflows mirror local usage through `make build`, `make test`, `make docs`, and tagged release packaging.

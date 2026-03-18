@@ -59,6 +59,7 @@ program max_likelihood_driver
         requested_trajectory_points, seed_value, write_state_history, &
         output_timestamp, state_history_file, estimator_history_file &
     )
+    call normalize_output_timestamp(output_timestamp)
     call assign_default_output_path(&
         output_timestamp, default_state_history_name, state_history_file &
     )
@@ -251,10 +252,58 @@ contains
         integer :: values(8)
 
         call date_and_time(values=values)
-        allocate (character(len=19) :: timestamp)
-        write (timestamp, '(i4.4,"-",i2.2,"-",i2.2,"T",i2.2,":",i2.2,":",i2.2)') &
+        allocate (character(len=15) :: timestamp)
+        write (timestamp, '(i4.4,i2.2,i2.2,"T",i2.2,i2.2,i2.2)') &
             values(1), values(2), values(3), values(5), values(6), values(7)
     end function build_output_timestamp
+
+    subroutine normalize_output_timestamp(timestamp)
+        character(len=:), allocatable, intent(inout) :: timestamp
+
+        character(len=:), allocatable :: trimmed
+
+        if (.not. allocated(timestamp)) return
+
+        trimmed = trim(adjustl(timestamp))
+        if (len(trimmed) == 0) then
+            timestamp = build_output_timestamp()
+            return
+        end if
+
+        if (len(trimmed) == 19 .and. trimmed(5:5) == "-" .and. &
+            trimmed(8:8) == "-" .and. &
+            (trimmed(11:11) == "T" .or. trimmed(11:11) == "t") .and. &
+            trimmed(14:14) == ":" .and. trimmed(17:17) == ":") then
+            timestamp = trimmed(1:4)//trimmed(6:7)//trimmed(9:10)//"T"// &
+                trimmed(12:13)//trimmed(15:16)//trimmed(18:19)
+            return
+        end if
+
+        if (len(trimmed) == 15 .and. &
+            (trimmed(9:9) == "T" .or. trimmed(9:9) == "t")) then
+            timestamp = trimmed
+            timestamp(9:9) = "T"
+            return
+        end if
+
+        timestamp = sanitize_filename_component(trimmed)
+    end subroutine normalize_output_timestamp
+
+    pure function sanitize_filename_component(text) result(sanitized)
+        character(len=*), intent(in) :: text
+        character(len=len(text)) :: sanitized
+
+        integer :: index
+
+        do index = 1, len(text)
+            select case (text(index:index))
+            case ('"', "*", "/", ":", "<", ">", "?", "\", "|", " ")
+                sanitized(index:index) = "_"
+            case default
+                sanitized(index:index) = text(index:index)
+            end select
+        end do
+    end function sanitize_filename_component
 
     pure function to_lower(text) result(lowered)
         character(len=*), intent(in) :: text

@@ -2,7 +2,7 @@ FC = gfortran
 FFLAGS ?= -std=f2008 -O3 -Wall -Wextra -Wimplicit-interface
 PYTHON ?= python3
 DOXYGEN ?= doxygen
-TIMESTAMP ?= $(shell date '+%Y-%m-%dT%H:%M:%S')
+TIMESTAMP ?= $(shell date '+%Y%m%dT%H%M%S')
 LATEST_ESTIMATOR_PATTERN := *_estimator_trajectory.csv
 
 SRC_DIR := src

@@ -28,8 +28,8 @@ This repository contains the maintained Fortran implementation for simulating th
 - `make setup-git-hooks`: enable the tracked pre-commit hook path for this clone.
 - `make clean`: remove build products and timestamped CSV/PNG outputs.
 
-Generated filenames use an ISO 8601-style timestamp prefix, for example
-`2026-03-17T12:47:05_estimator_trajectory.csv`.
+Generated filenames use a filesystem-safe ISO 8601 basic timestamp prefix, for example
+`20260317T124705_estimator_trajectory.csv`.
 
 ## Runtime configuration
 
@@ -48,8 +48,9 @@ The driver reads environment variables so tests and CI can run a smaller case wi
 - `SARGAZO_STATE_HISTORY_FILE`
 - `SARGAZO_ESTIMATOR_HISTORY_FILE`
 
-You can also provide `TIMESTAMP=2026-03-17T12:47:05` to `make run` or `make plot`
-to force a specific output prefix for `make run`.
+You can also provide `TIMESTAMP=20260317T124705` to `make run`
+to force a specific output prefix. If you pass an older extended form such as
+`2026-03-17T12:47:05`, the application normalizes it before creating filenames.
 
 `make plot` does not rerun the Fortran application. If there is no estimator CSV in
 `data/output`, it stops with an error asking you to run `make run` first.
