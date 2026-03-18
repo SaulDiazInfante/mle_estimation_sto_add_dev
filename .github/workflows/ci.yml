@@ -34,6 +34,19 @@ jobs:
       - name: Build and test
         run: make test
 
+      - name: Validate test artifact filenames
+        if: always()
+        run: |
+          echo "Collected test artifacts:"
+          find tests/artifacts -maxdepth 1 -type f | sort || true
+          invalid_files="$(find tests/artifacts -maxdepth 1 -type f | grep '[\":<>|*?]' || true)"
+          if [ -n "$invalid_files" ]; then
+            echo "Error: invalid artifact filename(s) detected:" >&2
+            printf '%s\n' "$invalid_files" >&2
+            echo "Use filesystem-safe timestamps such as 20260317T124705." >&2
+            exit 1
+          fi
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
