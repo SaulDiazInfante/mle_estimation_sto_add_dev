@@ -129,29 +129,41 @@ def add_panel(
     time: list[float],
     estimate: list[float],
     truth: list[float],
-    title: str
-) -> None:
-    ax.plot(
+    title: str,
+    panel_label: str,
+    y_label: str,
+) -> tuple[plt.Line2D, plt.Line2D]:
+    estimate_line, = ax.plot(
         time,
         estimate,
         color="#0b6e4f",
         linewidth=2.0,
-        label=f"{title} estimate"
+        label="Estimate"
     )
-    ax.plot(
+    truth_line, = ax.plot(
         time,
         truth,
         color="#b22222",
         linewidth=1.8,
         linestyle="--",
-        label=f"{title} true"
+        label="Ground truth"
     )
     configure_y_scale(ax, estimate, truth, title)
     ax.set_title(title)
+    ax.text(
+        0.99,
+        0.98,
+        panel_label,
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=12,
+        fontweight="bold",
+    )
     ax.set_xlabel("Time")
-    ax.set_ylabel("Value")
+    ax.set_ylabel(y_label)
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="best")
+    return estimate_line, truth_line
 
 
 def main() -> None:
@@ -165,30 +177,47 @@ def main() -> None:
         3, 1,
         figsize=(10, 11),
         sharex=True,
-        constrained_layout=True
     )
-    fig.suptitle("Asymptotic Evolution of the Estimators", fontsize=15)
+    fig.suptitle("Asymptotic Evolution of the Estimators", fontsize=15, y=0.98)
 
-    add_panel(
+    estimate_handle, truth_handle = add_panel(
         axes[0],
         trajectory["time"],
         trajectory["sigma_hat"],
         trajectory["sigma_true"],
-        "sigma"
+        r"$\sigma$",
+        "(A)",
+        r"$\hat{\sigma}$",
     )
     add_panel(
         axes[1],
         trajectory["time"],
         trajectory["beta_hat"],
         trajectory["beta_true"],
-        "beta"
+        r"$\beta$",
+        "(B)",
+        r"$\hat{\beta}$",
     )
     add_panel(
         axes[2],
         trajectory["time"],
         trajectory["theta_hat"],
         trajectory["theta_true"],
-        "theta"
+        r"$\theta$",
+        "(C)",
+        r"$\hat{\theta}$",
+    )
+
+    fig.legend(
+        [estimate_handle, truth_handle],
+        ["Estimate", "Ground truth"],
+        loc="lower center",
+        ncols=2,
+        frameon=True,
+        fancybox=False,
+        framealpha=1.0,
+        edgecolor="black",
+        bbox_to_anchor=(0.5, 0.02),
     )
 
     axes[0].set_xlabel("")
@@ -196,6 +225,7 @@ def main() -> None:
     axes[2].set_xlabel("Time")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.tight_layout(rect=(0.0, 0.08, 1.0, 0.96))
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
 

@@ -5,6 +5,10 @@ PYTHON ?= python3
 DOXYGEN ?= doxygen
 TIMESTAMP ?= $(shell date '+%Y%m%dT%H%M%S')
 LATEST_ESTIMATOR_PATTERN := *_estimator_trajectory.csv
+PAPER_MC_REPLICATES ?= 1000
+PAPER_MC_BASIS_LEVELS ?= 20
+PAPER_MC_N_OBSERVATIONS ?= 1000,5000,20000,50000
+PAPER_MC_TIME_STEPS ?= 1.0e-7,1.0e-6,1.0e-5,1.0e-4
 
 SRC_DIR := src
 APP_DIR := $(SRC_DIR)/app
@@ -13,7 +17,8 @@ BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj
 MOD_DIR := $(BUILD_DIR)/mod
 BIN_DIR := $(BUILD_DIR)/bin
-TARGET := $(BIN_DIR)/multivariate_modular
+RUN_TARGET := $(BIN_DIR)/multivariate_modular
+MONTE_CARLO_TARGET := $(BIN_DIR)/monte_carlo_study
 
 DATA_OUTPUT_DIR := data/output
 PLOT_DIR := visualization/plots
@@ -30,10 +35,10 @@ MODULE_SRC := \
 	$(MODULE_DIR)/spectral_operators_mod.f90 \
 	$(MODULE_DIR)/progress_reporting_mod.f90 \
 	$(MODULE_DIR)/sde_simulation_mod.f90 \
-	$(MODULE_DIR)/parameter_ml_estimation_mod.f90
-MAIN_SRC := $(APP_DIR)/main.f90
-SRC := $(MODULE_SRC) $(MAIN_SRC)
-OBJ := \
+	$(MODULE_DIR)/parameter_ml_estimation_mod.f90 \
+	$(MODULE_DIR)/workflow_mod.f90 \
+	$(MODULE_DIR)/monte_carlo_study_mod.f90
+COMMON_MODULE_OBJ := \
 	$(OBJ_DIR)/model_types_mod.o \
 	$(OBJ_DIR)/driver_support_mod.o \
 	$(OBJ_DIR)/validation_mod.o \
@@ -42,16 +47,32 @@ OBJ := \
 	$(OBJ_DIR)/progress_reporting_mod.o \
 	$(OBJ_DIR)/sde_simulation_mod.o \
 	$(OBJ_DIR)/parameter_ml_estimation_mod.o \
+	$(OBJ_DIR)/workflow_mod.o \
+	$(OBJ_DIR)/monte_carlo_study_mod.o
+APP_OBJ := \
 	$(OBJ_DIR)/main.o
+APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
+OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run plot docs test test-smoke test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper plot docs test test-smoke test-monte-carlo test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
-build: $(TARGET)
+build: $(RUN_TARGET) $(MONTE_CARLO_TARGET)
 
 run: build | $(DATA_OUTPUT_DIR)
-	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(TARGET)
+	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(RUN_TARGET)
+
+run-monte-carlo: build | $(DATA_OUTPUT_DIR)
+	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(MONTE_CARLO_TARGET)
+
+run-monte-carlo-paper: build | $(DATA_OUTPUT_DIR)
+	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
+	SARGAZO_MC_REPLICATES='$(PAPER_MC_REPLICATES)' \
+	SARGAZO_MC_BASIS_LEVELS='$(PAPER_MC_BASIS_LEVELS)' \
+	SARGAZO_MC_N_OBSERVATIONS='$(PAPER_MC_N_OBSERVATIONS)' \
+	SARGAZO_MC_TIME_STEPS='$(PAPER_MC_TIME_STEPS)' \
+	$(MONTE_CARLO_TARGET)
 
 plot: | $(PLOT_DIR)
 	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_ESTIMATOR_PATTERN)' | sort | tail -n 1)"; \
@@ -70,6 +91,7 @@ docs:
 test: build
 	tests/run_unit_tests.sh
 	tests/smoke_test.sh
+	tests/monte_carlo_smoke_test.sh
 
 test-unit: build
 	tests/run_unit_tests.sh
@@ -77,16 +99,22 @@ test-unit: build
 test-smoke: build
 	tests/smoke_test.sh
 
+test-monte-carlo: build
+	tests/monte_carlo_smoke_test.sh
+
 check-large-files:
 	scripts/check_large_files.sh tracked
 
 setup-git-hooks:
 	git config core.hooksPath .githooks
 
-$(TARGET): $(OBJ) | $(BIN_DIR)
-	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $(OBJ)
+$(RUN_TARGET): $(COMMON_MODULE_OBJ) $(OBJ_DIR)/main.o | $(BIN_DIR)
+	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $^
 
-$(OBJ_DIR)/main.o: $(MAIN_SRC) | $(OBJ_DIR) $(MOD_DIR)
+$(MONTE_CARLO_TARGET): $(COMMON_MODULE_OBJ) $(OBJ_DIR)/monte_carlo_study.o | $(BIN_DIR)
+	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $^
+
+$(OBJ_DIR)/%.o: $(APP_DIR)/%.f90 | $(OBJ_DIR) $(MOD_DIR)
 	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(MODULE_DIR)/%.f90 | $(OBJ_DIR) $(MOD_DIR)
@@ -100,7 +128,15 @@ $(OBJ_DIR)/main.o: \
 	$(OBJ_DIR)/spectral_operators_mod.o \
 	$(OBJ_DIR)/progress_reporting_mod.o \
 	$(OBJ_DIR)/sde_simulation_mod.o \
-	$(OBJ_DIR)/parameter_ml_estimation_mod.o
+	$(OBJ_DIR)/parameter_ml_estimation_mod.o \
+	$(OBJ_DIR)/workflow_mod.o
+$(OBJ_DIR)/monte_carlo_study.o: \
+	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/driver_support_mod.o \
+	$(OBJ_DIR)/csv_output_mod.o \
+	$(OBJ_DIR)/progress_reporting_mod.o \
+	$(OBJ_DIR)/workflow_mod.o \
+	$(OBJ_DIR)/monte_carlo_study_mod.o
 $(OBJ_DIR)/driver_support_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/validation_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/csv_output_mod.o: $(OBJ_DIR)/model_types_mod.o
@@ -109,6 +145,17 @@ $(OBJ_DIR)/sde_simulation_mod.o: \
 	$(OBJ_DIR)/model_types_mod.o \
 	$(OBJ_DIR)/progress_reporting_mod.o
 $(OBJ_DIR)/parameter_ml_estimation_mod.o: $(OBJ_DIR)/model_types_mod.o
+$(OBJ_DIR)/workflow_mod.o: \
+	$(OBJ_DIR)/driver_support_mod.o \
+	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/parameter_ml_estimation_mod.o \
+	$(OBJ_DIR)/sde_simulation_mod.o \
+	$(OBJ_DIR)/spectral_operators_mod.o \
+	$(OBJ_DIR)/validation_mod.o
+$(OBJ_DIR)/monte_carlo_study_mod.o: \
+	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/progress_reporting_mod.o \
+	$(OBJ_DIR)/workflow_mod.o
 
 $(OBJ_DIR) $(MOD_DIR) $(BIN_DIR) $(DATA_OUTPUT_DIR) $(PLOT_DIR):
 	mkdir -p $@
@@ -117,10 +164,12 @@ clean:
 	rm -rf $(BUILD_DIR)
 	find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f \
 		\( -name 'estimator_trajectory.csv' -o -name '*_estimator_trajectory.csv' -o \
-		-name 'state_history.csv' -o -name '*_state_history.csv' \) -delete
+		-name 'state_history.csv' -o -name '*_state_history.csv' -o \
+		-name 'monte_carlo_summary.csv' -o -name '*_monte_carlo_summary.csv' -o \
+		-name 'monte_carlo_replicates.csv' -o -name '*_monte_carlo_replicates.csv' \) -delete
 	find $(PLOT_DIR) -maxdepth 1 -type f \
 		\( -name 'estimator_trajectory.png' -o -name '*_estimator_trajectory.png' \) -delete
-	rm -f *.o *.mod multivariate_modular
+	rm -f *.o *.mod multivariate_modular monte_carlo_study
 
 distclean: clean
 	find tests/artifacts -mindepth 1 ! -name '.gitkeep' -delete

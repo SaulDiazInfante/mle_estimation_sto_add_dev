@@ -19,11 +19,14 @@ This repository contains the maintained Fortran implementation for simulating th
 
 - `make build`: compile the maintained application into `build/bin/`.
 - `make run`: run the default workflow and write timestamped outputs under `data/output/`.
+- `make run-monte-carlo`: run the Monte Carlo study driver and write summary plus replicate CSV files under `data/output/`.
+- `make run-monte-carlo-paper`: run the paper-style study preset with the selected sweep over `dt`, basis size, and observation count.
 - `make plot`: plot the latest generated estimator CSV already present in `data/output/`.
 - `make docs`: build the Doxygen HTML site locally under `build/docs/doxygen/html`.
 - `make test`: run the repository smoke test used by CI.
 - `make test-unit`: run deterministic unit tests.
 - `make test-smoke`: run the end-to-end smoke test only.
+- `make test-monte-carlo`: run the Monte Carlo smoke test only.
 - `make check-large-files`: fail if tracked files exceed the repository size policy.
 - `make setup-git-hooks`: enable the tracked pre-commit hook path for this clone.
 - `make clean`: remove build products and timestamped CSV/PNG outputs.
@@ -39,6 +42,13 @@ The driver reads environment variables so tests and CI can run a smaller case wi
 - `SARGAZO_MINIMUM_TRAJECTORY_OBSERVATIONS`
 - `SARGAZO_REQUESTED_TRAJECTORY_POINTS`
 - `SARGAZO_TIME_STEP`
+- `SARGAZO_GRID_NX`
+- `SARGAZO_GRID_NY`
+- `SARGAZO_VELOCITY_MODE_X`
+- `SARGAZO_VELOCITY_MODE_Y`
+- `SARGAZO_LENGTH_X`
+- `SARGAZO_LENGTH_Y`
+- `SARGAZO_GAMMA`
 - `SARGAZO_BETA`
 - `SARGAZO_THETA`
 - `SARGAZO_SIGMA`
@@ -59,6 +69,44 @@ Long simulations print progress updates from the time-stepping loop at regular
 checkpoints so you can monitor the run while it is executing.
 
 `make test` runs both the unit-test layer and the fast smoke test used by CI.
+
+## Monte Carlo study
+
+The Monte Carlo driver uses the same simulation and MLE pipeline as `make run`,
+but sweeps over combinations of trajectory length, integration step size, and
+square spectral basis resolution. The study writes two CSV files:
+
+- a summary table with per-combination means, standard deviations, and average runtimes;
+- a replicate table with one row per simulated dataset, suitable for histograms.
+
+The study driver reads these additional environment variables:
+
+- `SARGAZO_MC_REPLICATES`
+- `SARGAZO_MC_BASIS_LEVELS`
+- `SARGAZO_MC_N_OBSERVATIONS`
+- `SARGAZO_MC_TIME_STEPS`
+- `SARGAZO_MC_SUMMARY_FILE`
+- `SARGAZO_MC_REPLICATE_FILE`
+
+List-valued study variables use comma-separated values. The selected paper-style
+preset can be launched directly with:
+
+```bash
+make run-monte-carlo-paper
+```
+
+The preset uses:
+
+- `SARGAZO_MC_REPLICATES=1000`
+- `SARGAZO_MC_BASIS_LEVELS=20`
+- `SARGAZO_MC_N_OBSERVATIONS=1000,5000,20000,50000`
+- `SARGAZO_MC_TIME_STEPS=1.0e-7,1.0e-6,1.0e-5,1.0e-4`
+
+You can still override any preset component from the command line. For example:
+
+```bash
+make run-monte-carlo-paper PAPER_MC_REPLICATES=250
+```
 
 ## Git tracking policy
 

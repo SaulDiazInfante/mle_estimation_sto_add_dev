@@ -17,8 +17,15 @@ gfortran \
     -I "$BUILD_DIR/mod" \
     "$ROOT_DIR/tests/unit/test_core.f90" \
     "$BUILD_DIR/obj/model_types_mod.o" \
+    "$BUILD_DIR/obj/driver_support_mod.o" \
+    "$BUILD_DIR/obj/validation_mod.o" \
+    "$BUILD_DIR/obj/csv_output_mod.o" \
+    "$BUILD_DIR/obj/spectral_operators_mod.o" \
     "$BUILD_DIR/obj/progress_reporting_mod.o" \
+    "$BUILD_DIR/obj/sde_simulation_mod.o" \
     "$BUILD_DIR/obj/parameter_ml_estimation_mod.o" \
+    "$BUILD_DIR/obj/workflow_mod.o" \
+    "$BUILD_DIR/obj/monte_carlo_study_mod.o" \
     -o "$TEST_BIN"
 
 "$TEST_BIN"

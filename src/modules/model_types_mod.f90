@@ -65,6 +65,57 @@ module model_types_mod
                                              !!  estimation stage.
     end type parameter_estimates_t
 
+    !> Configuration for Monte Carlo sweeps over trajectory and basis settings.
+    type, public :: monte_carlo_study_config_t
+        integer :: n_replicates = 1000
+        integer, allocatable :: basis_levels(:)
+        integer, allocatable :: observation_counts(:)
+        real(dp), allocatable :: time_steps(:)
+    end type monte_carlo_study_config_t
+
+    !> Replicate-level results for a single Monte Carlo realization.
+    type, public :: monte_carlo_replicate_result_t
+        integer :: basis_level = 0
+        integer :: nx = 0
+        integer :: ny = 0
+        integer :: state_dimension = 0
+        integer :: n_observations = 0
+        integer :: replicate = 0
+        real(dp) :: time_step = 0.0_dp
+        real(dp) :: sigma_hat = 0.0_dp
+        real(dp) :: sigma_true = 0.0_dp
+        real(dp) :: beta_hat = 0.0_dp
+        real(dp) :: beta_true = 0.0_dp
+        real(dp) :: theta_hat = 0.0_dp
+        real(dp) :: theta_true = 0.0_dp
+        real(dp) :: setup_time = 0.0_dp
+        real(dp) :: estimation_time = 0.0_dp
+        real(dp) :: total_time = 0.0_dp
+    end type monte_carlo_replicate_result_t
+
+    !> Combination-level summary statistics accumulated across replicates.
+    type, public :: monte_carlo_case_summary_t
+        integer :: basis_level = 0
+        integer :: nx = 0
+        integer :: ny = 0
+        integer :: state_dimension = 0
+        integer :: n_observations = 0
+        integer :: n_replicates = 0
+        real(dp) :: time_step = 0.0_dp
+        real(dp) :: sigma_mean = 0.0_dp
+        real(dp) :: sigma_sd = 0.0_dp
+        real(dp) :: sigma_true = 0.0_dp
+        real(dp) :: beta_mean = 0.0_dp
+        real(dp) :: beta_sd = 0.0_dp
+        real(dp) :: beta_true = 0.0_dp
+        real(dp) :: theta_mean = 0.0_dp
+        real(dp) :: theta_sd = 0.0_dp
+        real(dp) :: theta_true = 0.0_dp
+        real(dp) :: average_setup_time = 0.0_dp
+        real(dp) :: average_estimation_time = 0.0_dp
+        real(dp) :: average_total_time = 0.0_dp
+    end type monte_carlo_case_summary_t
+
     public :: get_state_dimension
 
     contains

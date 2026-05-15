@@ -2,14 +2,17 @@
 !! @brief Small deterministic unit tests for core helper routines.
 !> @brief Exercises basic derived-type and checkpoint helper behavior.
 program test_core
+    use model_types_mod, only: monte_carlo_study_config_t
     use model_types_mod, only: spatial_grid_t
     use model_types_mod, only: get_state_dimension
+    use monte_carlo_study_mod, only: compute_monte_carlo_case_count
     use parameter_ml_estimation_mod, only: build_uniform_checkpoints
     implicit none
 
     call test_state_dimension()
     call test_uniform_checkpoints_even_spacing()
     call test_uniform_checkpoints_clamped_request()
+    call test_monte_carlo_case_count()
 
     write (*, '(a)') "Unit tests passed."
 
@@ -57,5 +60,22 @@ contains
         call assert_true(all(checkpoints == [4, 5, 6]), &
             "clamped checkpoints should cover all available points")
     end subroutine test_uniform_checkpoints_clamped_request
+
+    subroutine test_monte_carlo_case_count()
+        type(monte_carlo_study_config_t) :: study_config
+
+        allocate (study_config%basis_levels(2))
+        allocate (study_config%observation_counts(3))
+        allocate (study_config%time_steps(4))
+
+        study_config%basis_levels = [10, 20]
+        study_config%observation_counts = [1000, 5000, 20000]
+        study_config%time_steps = [1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3]
+
+        call assert_true(&
+            compute_monte_carlo_case_count(study_config) == 24, &
+            "case count should equal the cartesian-product size" &
+        )
+    end subroutine test_monte_carlo_case_count
 
 end program test_core
