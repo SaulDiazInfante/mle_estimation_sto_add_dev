@@ -18,7 +18,7 @@ module monte_carlo_study_mod
     implicit none
     private
 
-    integer, parameter :: default_study_progress_reports = 20
+    integer, parameter :: default_study_progress_reports = 100
 
     public :: compute_monte_carlo_case_count
     public :: run_monte_carlo_study
@@ -63,7 +63,6 @@ contains
         integer :: observation_index
         type(spectral_operator_set_t) :: operators
         type(parameter_estimates_t) :: estimates
-        type(progress_tracker_t) :: progress_tracker
         logical :: progress_enabled
         integer :: replicate
         integer :: replicate_index
@@ -74,6 +73,9 @@ contains
         real(dp) :: beta_mean
         real(dp) :: beta_sum
         real(dp) :: beta_sumsq
+        type(progress_tracker_t) :: case_progress_tracker
+        character(len=:), allocatable :: progress_detail
+        character(len=:), allocatable :: progress_label
         real(dp) :: setup_sum
         real(dp) :: sigma_mean
         real(dp) :: sigma_sum
@@ -102,11 +104,6 @@ contains
 
         progress_enabled = .false.
         if (present(report_progress)) progress_enabled = report_progress
-        call initialize_progress_tracker(&
-            progress_tracker, "Monte Carlo study progress", total_replicates, &
-            default_study_progress_reports, progress_enabled &
-        )
-
         case_index = 0
         replicate_index = 0
         do basis_index = 1, size(study_config%basis_levels)
@@ -132,6 +129,18 @@ contains
                     setup_sum = 0.0_dp
                     estimation_sum = 0.0_dp
                     total_sum = 0.0_dp
+
+                    progress_label = build_case_progress_label(&
+                        case_index, case_count &
+                    )
+                    progress_detail = build_case_progress_detail(&
+                        study_grid, study_parameters &
+                    )
+                    call initialize_progress_tracker(&
+                        case_progress_tracker, progress_label, &
+                        study_config%n_replicates, default_study_progress_reports, &
+                        progress_enabled, detail=progress_detail &
+                    )
 
                     do replicate = 1, study_config%n_replicates
                         replicate_index = replicate_index + 1
@@ -160,8 +169,9 @@ contains
                         total_sum = total_sum + estimates%setup_time + &
                             estimates%estimation_time
 
-                        call update_progress_tracker(progress_tracker, replicate_index)
+                        call update_progress_tracker(case_progress_tracker, replicate)
                     end do
+                    call finalize_progress_tracker(case_progress_tracker)
 
                     sigma_mean = sigma_sum / real(study_config%n_replicates, dp)
                     beta_mean = beta_sum / real(study_config%n_replicates, dp)
@@ -190,8 +200,6 @@ contains
                 end do
             end do
         end do
-
-        call finalize_progress_tracker(progress_tracker)
     end subroutine run_monte_carlo_study
 
     pure integer function derive_replicate_seed(&
@@ -210,6 +218,35 @@ contains
             int(replicate_index - 1, int64)
         seed_value = int(modulo(raw_seed, int(huge(1) - 1, int64))) + 1
     end function derive_replicate_seed
+
+    pure function build_case_progress_label(case_index, case_count) &
+        result(label)
+        character(len=:), allocatable :: label
+
+        integer, intent(in) :: case_count
+        integer, intent(in) :: case_index
+
+        character(len=64) :: buffer
+
+        write (buffer, '("Monte Carlo case ",i0,"/",i0)') case_index, case_count
+        label = trim(buffer)
+    end function build_case_progress_label
+
+    pure function build_case_progress_detail(&
+        grid, parameters &
+    ) result(detail)
+        character(len=:), allocatable :: detail
+
+        type(spatial_grid_t), intent(in) :: grid
+        type(sde_parameters_t), intent(in) :: parameters
+
+        character(len=128) :: buffer
+
+        write (buffer, &
+            '("N=",i0,"x",i0," | M=",i0," | dt=",es11.4e3)') &
+            grid%nx, grid%ny, parameters%n_observations, parameters%time_step
+        detail = trim(buffer)
+    end function build_case_progress_detail
 
     pure real(dp) function compute_sample_standard_deviation(&
         sample_sum, sample_sumsq, n_samples &

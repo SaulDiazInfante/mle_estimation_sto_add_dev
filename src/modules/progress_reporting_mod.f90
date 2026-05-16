@@ -13,7 +13,9 @@ module progress_reporting_mod
     !> Mutable state used to report progress for a single loop or task.
     type, public :: progress_tracker_t
         logical :: active_line = .false.              !!< Tracks whether an in-place line is active.
+        character(len=:), allocatable :: detail       !!< Optional case-specific details appended to the line.
         logical :: enabled = .false.                  !!< Enables or disables all output.
+        integer :: last_completed_work = 0            !!< Most recent completed-work value seen by the tracker.
         integer :: last_line_length = 0               !!< Width of the most recent rendered line.
         integer :: next_report = 0                    !!< Next completed-work threshold to report.
         integer :: report_interval = 0                !!< Spacing between progress updates.
@@ -24,21 +26,24 @@ module progress_reporting_mod
 
     public :: finalize_progress_tracker
     public :: initialize_progress_tracker
+    public :: set_progress_tracker_detail
     public :: update_progress_tracker
 
 contains
 
     !> Initializes a tracker and optionally prints an initial 0% progress line.
     subroutine initialize_progress_tracker(&
-        tracker, label, total_work, report_count, enabled &
+        tracker, label, total_work, report_count, enabled, detail &
     )
         type(progress_tracker_t), intent(out) :: tracker
         character(len=*), intent(in) :: label
         integer, intent(in) :: total_work
         integer, intent(in) :: report_count
         logical, intent(in) :: enabled
+        character(len=*), intent(in), optional :: detail
 
         tracker%enabled = enabled .and. total_work > 0
+        if (present(detail)) tracker%detail = trim(detail)
         tracker%label = trim(label)
         tracker%total_work = max(0, total_work)
 
@@ -47,6 +52,7 @@ contains
         tracker%report_interval = max( &
             1, ceiling_division(tracker%total_work, max(1, report_count)) &
         )
+        tracker%last_completed_work = 0
         tracker%next_report = tracker%report_interval
 
         tracker%start_time = read_wall_time_seconds()
@@ -63,6 +69,7 @@ contains
         if (.not. tracker%enabled) return
 
         bounded_work = min(completed_work, tracker%total_work)
+        tracker%last_completed_work = bounded_work
         if (bounded_work < tracker%next_report .and. &
             bounded_work < tracker%total_work) then
             return
@@ -97,6 +104,24 @@ contains
         end if
     end subroutine finalize_progress_tracker
 
+    !> Sets optional task details and optionally refreshes the current line.
+    subroutine set_progress_tracker_detail(tracker, detail, refresh)
+        type(progress_tracker_t), intent(inout) :: tracker
+        character(len=*), intent(in) :: detail
+        logical, intent(in), optional :: refresh
+
+        logical :: refresh_line
+
+        tracker%detail = trim(detail)
+        if (.not. tracker%enabled) return
+
+        refresh_line = .false.
+        if (present(refresh)) refresh_line = refresh
+        if (refresh_line) then
+            call write_progress_line(tracker, tracker%last_completed_work)
+        end if
+    end subroutine set_progress_tracker_detail
+
     pure integer function ceiling_division(numerator, denominator) result(value)
         integer, intent(in) :: denominator
         integer, intent(in) :: numerator
@@ -121,7 +146,8 @@ contains
         type(progress_tracker_t), intent(inout) :: tracker
         integer, intent(in) :: completed_work
 
-        character(len=200) :: progress_line
+        character(len=320) :: base_line
+        character(len=640) :: progress_line
         character(len=progress_bar_width) :: progress_bar
         real(real64) :: completion_fraction
         real(real64) :: current_time
@@ -153,12 +179,20 @@ contains
         progress_bar = repeat('#', filled_segments) // &
             repeat('-', progress_bar_width - filled_segments)
 
-        write (progress_line, '(a,1x,"[",a,"]",1x,f6.2,a,2x,'// &
+        write (base_line, '(a,1x,"[",a,"]",1x,f6.2,a,2x,'// &
             '"(",i0,"/",i0,")",2x,"elapsed ",f7.2," s",2x,'// &
             '"eta ",f7.2," s")') &
             trim(tracker%label), progress_bar, &
             100.0_real64 * completion_fraction, "%", completed_work, &
             tracker%total_work, elapsed_seconds, eta_seconds
+
+        progress_line = trim(base_line)
+        if (allocated(tracker%detail)) then
+            if (len_trim(tracker%detail) > 0) then
+                progress_line = trim(progress_line)//"  |  "// &
+                    trim(tracker%detail)
+            end if
+        end if
 
         current_line_length = len_trim(progress_line)
         padding_length = max(0, tracker%last_line_length - current_line_length)

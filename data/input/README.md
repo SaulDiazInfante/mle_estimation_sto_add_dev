@@ -15,5 +15,9 @@ Use these ignored folders for local-only files if needed:
 - `data/input/raw/`
 - `data/input/cache/`
 
+Tracked configuration templates can also live directly in `data/input/`.
+For example, `data/input/snapshot_comparison.env` contains a ready-to-source
+runtime configuration for the snapshot-comparison executable.
+
 If a dataset is too large for normal git hosting, keep it outside the repository and
 document how to obtain or regenerate it.

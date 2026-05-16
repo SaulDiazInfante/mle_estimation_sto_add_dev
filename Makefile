@@ -5,10 +5,13 @@ PYTHON ?= python3
 DOXYGEN ?= doxygen
 TIMESTAMP ?= $(shell date '+%Y%m%dT%H%M%S')
 LATEST_ESTIMATOR_PATTERN := *_estimator_trajectory.csv
+LATEST_SNAPSHOT_PATTERN := *_solution_snapshot_comparison.csv
 PAPER_MC_REPLICATES ?= 1000
 PAPER_MC_BASIS_LEVELS ?= 20
-PAPER_MC_N_OBSERVATIONS ?= 1000,5000,20000,50000
-PAPER_MC_TIME_STEPS ?= 1.0e-7,1.0e-6,1.0e-5,1.0e-4
+PAPER_MC_N_OBSERVATIONS ?= 100,500
+PAPER_MC_TIME_STEPS ?= 1.0e-5,1.0e-4
+#PAPER_MC_N_OBSERVATIONS ?= 1000,5000,20000,50000
+#PAPER_MC_TIME_STEPS ?= 1.0e-7,1.0e-6,1.0e-5,1.0e-4
 
 SRC_DIR := src
 APP_DIR := $(SRC_DIR)/app
@@ -19,10 +22,15 @@ MOD_DIR := $(BUILD_DIR)/mod
 BIN_DIR := $(BUILD_DIR)/bin
 RUN_TARGET := $(BIN_DIR)/multivariate_modular
 MONTE_CARLO_TARGET := $(BIN_DIR)/monte_carlo_study
+SNAPSHOT_COMPARISON_TARGET := $(BIN_DIR)/snapshot_comparison
 
 DATA_OUTPUT_DIR := data/output
 PLOT_DIR := visualization/plots
 PLOT_SCRIPT := visualization/scripts/plot_estimator_trajectory.py
+SNAPSHOT_PLOT_SCRIPT := visualization/scripts/plot_solution_snapshot_comparison.py
+SNAPSHOT_VIDEO_SCRIPT := visualization/scripts/animate_solution_snapshot_comparison.py
+SNAPSHOT_PLOT_ARGS ?=
+SNAPSHOT_VIDEO_ARGS ?=
 DOXYFILE := docs/Doxyfile
 DOCS_DIR := $(BUILD_DIR)/docs/doxygen
 DOCS_HTML_DIR := $(DOCS_DIR)/html
@@ -52,13 +60,14 @@ COMMON_MODULE_OBJ := \
 APP_OBJ := \
 	$(OBJ_DIR)/main.o
 APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
+APP_OBJ += $(OBJ_DIR)/snapshot_comparison.o
 OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run run-monte-carlo run-monte-carlo-paper plot docs test test-smoke test-monte-carlo test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison plot plot-snapshot-comparison video-snapshot-comparison docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
-build: $(RUN_TARGET) $(MONTE_CARLO_TARGET)
+build: $(RUN_TARGET) $(MONTE_CARLO_TARGET) $(SNAPSHOT_COMPARISON_TARGET)
 
 run: build | $(DATA_OUTPUT_DIR)
 	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(RUN_TARGET)
@@ -74,6 +83,9 @@ run-monte-carlo-paper: build | $(DATA_OUTPUT_DIR)
 	SARGAZO_MC_TIME_STEPS='$(PAPER_MC_TIME_STEPS)' \
 	$(MONTE_CARLO_TARGET)
 
+run-snapshot-comparison: build | $(DATA_OUTPUT_DIR)
+	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(SNAPSHOT_COMPARISON_TARGET)
+
 plot: | $(PLOT_DIR)
 	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_ESTIMATOR_PATTERN)' | sort | tail -n 1)"; \
 	if [ -z "$$latest_file" ]; then \
@@ -81,6 +93,21 @@ plot: | $(PLOT_DIR)
 		exit 1; \
 	fi; \
 	$(PYTHON) $(PLOT_SCRIPT) --input "$$latest_file"
+
+plot-snapshot-comparison: build | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@snapshot_file="$(DATA_OUTPUT_DIR)/$(TIMESTAMP)_solution_snapshot_comparison.csv"; \
+	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
+	SARGAZO_SNAPSHOT_COMPARISON_FILE="$$snapshot_file" \
+	$(SNAPSHOT_COMPARISON_TARGET); \
+	$(PYTHON) $(SNAPSHOT_PLOT_SCRIPT) --input "$$snapshot_file" $(SNAPSHOT_PLOT_ARGS)
+
+video-snapshot-comparison: build | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@snapshot_file="$(DATA_OUTPUT_DIR)/$(TIMESTAMP)_solution_snapshot_comparison.csv"; \
+	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
+	SARGAZO_SNAPSHOT_USE_FRAME_COUNT=1 \
+	SARGAZO_SNAPSHOT_COMPARISON_FILE="$$snapshot_file" \
+	$(SNAPSHOT_COMPARISON_TARGET); \
+	$(PYTHON) $(SNAPSHOT_VIDEO_SCRIPT) --input "$$snapshot_file" $(SNAPSHOT_VIDEO_ARGS)
 
 docs:
 	mkdir -p $(DOCS_DIR)
@@ -92,6 +119,7 @@ test: build
 	tests/run_unit_tests.sh
 	tests/smoke_test.sh
 	tests/monte_carlo_smoke_test.sh
+	tests/snapshot_comparison_smoke_test.sh
 
 test-unit: build
 	tests/run_unit_tests.sh
@@ -101,6 +129,9 @@ test-smoke: build
 
 test-monte-carlo: build
 	tests/monte_carlo_smoke_test.sh
+
+test-snapshot-comparison: build
+	tests/snapshot_comparison_smoke_test.sh
 
 check-large-files:
 	scripts/check_large_files.sh tracked
@@ -112,6 +143,9 @@ $(RUN_TARGET): $(COMMON_MODULE_OBJ) $(OBJ_DIR)/main.o | $(BIN_DIR)
 	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $^
 
 $(MONTE_CARLO_TARGET): $(COMMON_MODULE_OBJ) $(OBJ_DIR)/monte_carlo_study.o | $(BIN_DIR)
+	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $^
+
+$(SNAPSHOT_COMPARISON_TARGET): $(COMMON_MODULE_OBJ) $(OBJ_DIR)/snapshot_comparison.o | $(BIN_DIR)
 	$(FC) $(FFLAGS) $(OMPFLAGS) -J $(MOD_DIR) -I $(MOD_DIR) -o $@ $^
 
 $(OBJ_DIR)/%.o: $(APP_DIR)/%.f90 | $(OBJ_DIR) $(MOD_DIR)
@@ -137,6 +171,11 @@ $(OBJ_DIR)/monte_carlo_study.o: \
 	$(OBJ_DIR)/progress_reporting_mod.o \
 	$(OBJ_DIR)/workflow_mod.o \
 	$(OBJ_DIR)/monte_carlo_study_mod.o
+$(OBJ_DIR)/snapshot_comparison.o: \
+	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/driver_support_mod.o \
+	$(OBJ_DIR)/csv_output_mod.o \
+	$(OBJ_DIR)/workflow_mod.o
 $(OBJ_DIR)/driver_support_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/validation_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/csv_output_mod.o: $(OBJ_DIR)/model_types_mod.o
@@ -144,7 +183,9 @@ $(OBJ_DIR)/spectral_operators_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/sde_simulation_mod.o: \
 	$(OBJ_DIR)/model_types_mod.o \
 	$(OBJ_DIR)/progress_reporting_mod.o
-$(OBJ_DIR)/parameter_ml_estimation_mod.o: $(OBJ_DIR)/model_types_mod.o
+$(OBJ_DIR)/parameter_ml_estimation_mod.o: \
+	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/progress_reporting_mod.o
 $(OBJ_DIR)/workflow_mod.o: \
 	$(OBJ_DIR)/driver_support_mod.o \
 	$(OBJ_DIR)/model_types_mod.o \
@@ -166,10 +207,14 @@ clean:
 		\( -name 'estimator_trajectory.csv' -o -name '*_estimator_trajectory.csv' -o \
 		-name 'state_history.csv' -o -name '*_state_history.csv' -o \
 		-name 'monte_carlo_summary.csv' -o -name '*_monte_carlo_summary.csv' -o \
-		-name 'monte_carlo_replicates.csv' -o -name '*_monte_carlo_replicates.csv' \) -delete
+		-name 'monte_carlo_replicates.csv' -o -name '*_monte_carlo_replicates.csv' -o \
+		-name 'solution_snapshot_comparison.csv' -o -name '*_solution_snapshot_comparison.csv' \) -delete
 	find $(PLOT_DIR) -maxdepth 1 -type f \
-		\( -name 'estimator_trajectory.png' -o -name '*_estimator_trajectory.png' \) -delete
-	rm -f *.o *.mod multivariate_modular monte_carlo_study
+		\( -name 'estimator_trajectory.png' -o -name '*_estimator_trajectory.png' -o \
+		-name 'solution_snapshot_comparison.png' -o -name '*_solution_snapshot_comparison.png' -o \
+		-name 'solution_snapshot_comparison.gif' -o -name '*_solution_snapshot_comparison.gif' -o \
+		-name 'solution_snapshot_comparison.mp4' -o -name '*_solution_snapshot_comparison.mp4' \) -delete
+	rm -f *.o *.mod multivariate_modular monte_carlo_study snapshot_comparison
 
 distclean: clean
 	find tests/artifacts -mindepth 1 ! -name '.gitkeep' -delete

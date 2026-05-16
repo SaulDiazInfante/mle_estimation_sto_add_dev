@@ -16,9 +16,9 @@ module model_types_mod
     !> Spatial and physical configuration for the rectangular computational 
     !! grid.
     type, public :: spatial_grid_t
-        integer :: nx = 10                !!< Number of grid cells or modes in 
+        integer :: nx = 50                !!< Number of grid cells or modes in 
                                           !! x.
-        integer :: ny = 10                !!< Number of grid cells or modes in 
+        integer :: ny = 50                !!< Number of grid cells or modes in 
                                           !! y.
         integer :: velocity_mode_x = 1    !!< Velocity forcing mode in x.
         integer :: velocity_mode_y = 1    !!< Velocity forcing mode in y.

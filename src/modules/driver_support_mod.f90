@@ -17,9 +17,11 @@ module driver_support_mod
     integer, parameter, public :: default_monte_carlo_replicates = 1000
     character(len=*), parameter, public :: default_monte_carlo_summary_name = &
         "monte_carlo_summary.csv"
+    character(len=*), parameter, public :: default_snapshot_comparison_name = &
+        "solution_snapshot_comparison.csv"
     integer, parameter, public :: default_minimum_trajectory_observations = 10000
     character(len=*), parameter, public :: default_output_directory = "data/output"
-    integer, parameter, public :: default_requested_trajectory_points = 100
+    integer, parameter, public :: default_requested_trajectory_points = 500
     integer, parameter, public :: default_seed_value = 42
     character(len=*), parameter, public :: default_state_history_name = &
         "state_history.csv"
@@ -28,6 +30,7 @@ module driver_support_mod
     public :: build_output_timestamp
     public :: load_core_runtime_configuration
     public :: load_monte_carlo_configuration
+    public :: load_snapshot_configuration
     public :: load_runtime_configuration
     public :: normalize_output_timestamp
     public :: read_wall_time_seconds
@@ -153,6 +156,160 @@ contains
             error stop
         end if
     end subroutine load_monte_carlo_configuration
+
+    subroutine load_snapshot_configuration(&
+        time_step, n_observations, snapshot_times, snapshot_path &
+    )
+        real(dp), intent(in) :: time_step
+        integer, intent(in) :: n_observations
+        real(dp), allocatable, intent(inout) :: snapshot_times(:)
+        character(len=:), allocatable, intent(inout) :: snapshot_path
+
+        real(dp) :: initial_time
+        real(dp) :: final_time
+        integer :: frame_count
+        logical :: has_final_time
+        logical :: has_frame_count
+        logical :: has_initial_time
+        logical :: use_frame_count
+
+        call set_default_real_vector(snapshot_times, [0.0_dp, 0.5_dp, 2.0_dp])
+        call read_real_vector_env("SARGAZO_SNAPSHOT_TIMES", snapshot_times)
+        call read_string_env("SARGAZO_SNAPSHOT_COMPARISON_FILE", snapshot_path)
+        use_frame_count = .false.
+        call read_logical_env("SARGAZO_SNAPSHOT_USE_FRAME_COUNT", use_frame_count)
+        has_frame_count = environment_variable_is_present(&
+            "SARGAZO_SNAPSHOT_FRAME_COUNT" &
+        )
+        has_initial_time = environment_variable_is_present(&
+            "SARGAZO_SNAPSHOT_INITIAL_TIME" &
+        )
+        has_final_time = environment_variable_is_present(&
+            "SARGAZO_SNAPSHOT_FINAL_TIME" &
+        )
+
+        if (use_frame_count) then
+            if (.not. has_frame_count) then
+                write (*, '(a)') &
+                    "SARGAZO_SNAPSHOT_USE_FRAME_COUNT requires SARGAZO_SNAPSHOT_FRAME_COUNT."
+                error stop
+            end if
+
+            frame_count = 0
+            initial_time = 0.0_dp
+            final_time = (real(n_observations, dp) - 1.0_dp) * time_step
+
+            call read_integer_env("SARGAZO_SNAPSHOT_FRAME_COUNT", frame_count)
+            call read_real_env("SARGAZO_SNAPSHOT_INITIAL_TIME", initial_time)
+            call read_real_env("SARGAZO_SNAPSHOT_FINAL_TIME", final_time)
+            call build_uniform_snapshot_times(&
+                time_step, n_observations, initial_time, final_time, &
+                frame_count, snapshot_times &
+            )
+        else if (has_initial_time .or. has_final_time) then
+            write (*, '(a)') &
+                "SARGAZO_SNAPSHOT_INITIAL_TIME and SARGAZO_SNAPSHOT_FINAL_TIME require SARGAZO_SNAPSHOT_USE_FRAME_COUNT=1."
+            error stop
+        end if
+
+        if (.not. allocated(snapshot_times) .or. size(snapshot_times) < 1) then
+            write (*, '(a)') "At least one snapshot time is required."
+            error stop
+        end if
+
+        if (any(snapshot_times < 0.0_dp)) then
+            write (*, '(a)') "Snapshot times must be non-negative."
+            error stop
+        end if
+
+        if (size(snapshot_times) > 1) then
+            if (any(snapshot_times(2:) <= snapshot_times(:size(snapshot_times) - 1))) then
+                write (*, '(a)') "Snapshot times must be strictly increasing."
+                error stop
+            end if
+        end if
+    end subroutine load_snapshot_configuration
+
+    subroutine build_uniform_snapshot_times(&
+        time_step, n_observations, initial_time, final_time, frame_count, &
+        snapshot_times &
+    )
+        real(dp), intent(in) :: time_step
+        integer, intent(in) :: n_observations
+        real(dp), intent(in) :: initial_time
+        real(dp), intent(in) :: final_time
+        integer, intent(in) :: frame_count
+        real(dp), allocatable, intent(inout) :: snapshot_times(:)
+
+        integer :: available_steps
+        integer :: checkpoint_index
+        integer :: final_step
+        real(dp) :: horizon_time
+        integer :: initial_step
+        integer :: span_steps
+        real(dp) :: tolerance
+
+        if (frame_count < 1) then
+            write (*, '(a)') "SARGAZO_SNAPSHOT_FRAME_COUNT must be positive."
+            error stop
+        end if
+
+        if (time_step <= 0.0_dp) then
+            write (*, '(a)') "SARGAZO_TIME_STEP must be positive."
+            error stop
+        end if
+
+        horizon_time = (real(n_observations, dp) - 1.0_dp) * time_step
+        if (initial_time < 0.0_dp .or. final_time < initial_time) then
+            write (*, '(a)') &
+                "Snapshot frame time range must satisfy 0 <= initial <= final."
+            error stop
+        end if
+
+        if (final_time > horizon_time) then
+            write (*, '(a)') &
+                "SARGAZO_SNAPSHOT_FINAL_TIME exceeds the simulated time horizon."
+            error stop
+        end if
+
+        tolerance = max(1000.0_dp * epsilon(1.0_dp), 1.0e-12_dp)
+        initial_step = nint(initial_time / time_step)
+        final_step = nint(final_time / time_step)
+        if (abs(real(initial_step, dp) * time_step - initial_time) > tolerance) then
+            write (*, '(a)') &
+                "SARGAZO_SNAPSHOT_INITIAL_TIME must align with SARGAZO_TIME_STEP."
+            error stop
+        end if
+
+        if (abs(real(final_step, dp) * time_step - final_time) > tolerance) then
+            write (*, '(a)') &
+                "SARGAZO_SNAPSHOT_FINAL_TIME must align with SARGAZO_TIME_STEP."
+            error stop
+        end if
+
+        span_steps = final_step - initial_step
+        available_steps = span_steps + 1
+        if (frame_count > available_steps) then
+            write (*, '(a)') &
+                "SARGAZO_SNAPSHOT_FRAME_COUNT exceeds the available time-grid points in the requested interval."
+            error stop
+        end if
+
+        call set_default_real_vector(snapshot_times, spread(0.0_dp, 1, frame_count))
+        if (frame_count == 1) then
+            snapshot_times(1) = real(initial_step, dp) * time_step
+            return
+        end if
+
+        do checkpoint_index = 1, frame_count
+            snapshot_times(checkpoint_index) = real(&
+                initial_step + int(&
+                    real(checkpoint_index - 1, dp) * real(span_steps, dp) / &
+                    real(frame_count - 1, dp) &
+                ), dp &
+            ) * time_step
+        end do
+    end subroutine build_uniform_snapshot_times
 
     subroutine assign_default_output_path(timestamp, base_name, output_path)
         character(len=*), intent(in) :: timestamp
@@ -364,6 +521,16 @@ contains
             end if
         end do
     end function to_lower
+
+    logical function environment_variable_is_present(name) result(is_present)
+        character(len=*), intent(in) :: name
+
+        integer :: length
+        integer :: status
+
+        call get_environment_variable(name, length=length, status=status)
+        is_present = status == 0 .and. length > 0
+    end function environment_variable_is_present
 
     subroutine validate_grid_configuration(grid)
         type(spatial_grid_t), intent(in) :: grid

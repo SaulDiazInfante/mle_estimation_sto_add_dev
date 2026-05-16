@@ -178,7 +178,7 @@ def main() -> None:
         figsize=(10, 11),
         sharex=True,
     )
-    fig.suptitle("Asymptotic Evolution of the Estimators", fontsize=15, y=0.98)
+    fig.suptitle(r"Asymptotic Evolution of the Estimators $(\widehat{\sigma}, \widehat{\beta}, \widehat{\theta})$", fontsize=15, y=0.98)
 
     estimate_handle, truth_handle = add_panel(
         axes[0],
@@ -187,7 +187,7 @@ def main() -> None:
         trajectory["sigma_true"],
         r"$\sigma$",
         "(A)",
-        r"$\hat{\sigma}$",
+        r"$\widehat{\sigma}$",
     )
     add_panel(
         axes[1],
@@ -196,7 +196,7 @@ def main() -> None:
         trajectory["beta_true"],
         r"$\beta$",
         "(B)",
-        r"$\hat{\beta}$",
+        r"$\widehat{\beta}$",
     )
     add_panel(
         axes[2],
@@ -205,7 +205,7 @@ def main() -> None:
         trajectory["theta_true"],
         r"$\theta$",
         "(C)",
-        r"$\hat{\theta}$",
+        r"$\widehat{\theta}$",
     )
 
     fig.legend(

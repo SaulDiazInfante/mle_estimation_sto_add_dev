@@ -12,6 +12,8 @@ module spectral_operators_mod
     real(dp), parameter :: pi_dp = acos(-1.0_dp)
 
     public :: assemble_problem_operators
+    public :: build_cell_center_coordinates
+    public :: reconstruct_field_from_modes
 
 contains
 
@@ -196,6 +198,78 @@ contains
         end do
     end subroutine project_field_onto_modes
 
+    !> Reconstructs the physical-space field from modal coefficients.
+    subroutine reconstruct_field_from_modes(&
+        grid, mode_pairs, modal_coefficients, field &
+    )
+        type(spatial_grid_t), intent(in) :: grid
+        integer, intent(in) :: mode_pairs(:, :)
+        real(dp), intent(in) :: modal_coefficients(:)
+        real(dp), allocatable, intent(out) :: field(:, :)
+
+        integer :: ix
+        integer :: iy
+        integer :: mode_index
+        real(dp) :: basis_x
+        real(dp) :: basis_y
+        real(dp), allocatable :: x_coordinates(:)
+        real(dp), allocatable :: y_coordinates(:)
+
+        if (size(mode_pairs, 1) /= size(modal_coefficients)) then
+            write (*, '(a)') "Modal coefficient count must match mode pairs."
+            error stop
+        end if
+
+        call build_cell_center_coordinates(grid, x_coordinates, y_coordinates)
+        allocate (field(grid%nx, grid%ny))
+        field = 0.0_dp
+
+        do iy = 1, grid%ny
+            do ix = 1, grid%nx
+                do mode_index = 1, size(modal_coefficients)
+                    basis_x = evaluate_basis_function(&
+                        mode_pairs(mode_index, 1), x_coordinates(ix), &
+                        grid%length_x &
+                    )
+                    basis_y = evaluate_basis_function(&
+                        mode_pairs(mode_index, 2), y_coordinates(iy), &
+                        grid%length_y &
+                    )
+                    field(ix, iy) = field(ix, iy) + &
+                        modal_coefficients(mode_index) * basis_x * basis_y
+                end do
+            end do
+        end do
+    end subroutine reconstruct_field_from_modes
+
+    !> Builds the cell-centered coordinates used by the spectral projection.
+    subroutine build_cell_center_coordinates(&
+        grid, x_coordinates, y_coordinates &
+    )
+        type(spatial_grid_t), intent(in) :: grid
+        real(dp), allocatable, intent(out) :: x_coordinates(:)
+        real(dp), allocatable, intent(out) :: y_coordinates(:)
+
+        integer :: ix
+        integer :: iy
+        real(dp) :: dx
+        real(dp) :: dy
+
+        allocate (x_coordinates(grid%nx))
+        allocate (y_coordinates(grid%ny))
+
+        dx = grid%length_x / real(grid%nx, dp)
+        dy = grid%length_y / real(grid%ny, dp)
+
+        do ix = 1, grid%nx
+            x_coordinates(ix) = dx * (real(ix, dp) - 0.5_dp)
+        end do
+
+        do iy = 1, grid%ny
+            y_coordinates(iy) = dy * (real(iy, dp) - 0.5_dp)
+        end do
+    end subroutine build_cell_center_coordinates
+
     pure real(dp) function compute_mode_integral(&
         field, mode_i, mode_j, grid &
     ) result(integral_value)
@@ -250,6 +324,17 @@ contains
             normalization = sqrt(2.0_dp)
         end if
     end function get_basis_normalization
+
+    pure real(dp) function evaluate_basis_function(&
+        mode_number, coordinate, domain_length &
+    ) result(basis_value)
+        integer, intent(in) :: mode_number
+        real(dp), intent(in) :: coordinate
+        real(dp), intent(in) :: domain_length
+
+        basis_value = get_basis_normalization(mode_number) * &
+            cos(pi_dp * real(mode_number, dp) * coordinate / domain_length)
+    end function evaluate_basis_function
 
     subroutine assemble_interaction_and_diffusion(&
         grid, mode_pairs, eigenvalues, interaction_matrix, &
