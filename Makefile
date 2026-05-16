@@ -29,8 +29,10 @@ PLOT_DIR := visualization/plots
 PLOT_SCRIPT := visualization/scripts/plot_estimator_trajectory.py
 SNAPSHOT_PLOT_SCRIPT := visualization/scripts/plot_solution_snapshot_comparison.py
 SNAPSHOT_VIDEO_SCRIPT := visualization/scripts/animate_solution_snapshot_comparison.py
+SNAPSHOT_3D_SCRIPT := visualization/scripts/plot_3d_rugosity_comparison.py
 SNAPSHOT_PLOT_ARGS ?=
 SNAPSHOT_VIDEO_ARGS ?=
+SNAPSHOT_3D_ARGS ?=
 DOXYFILE := docs/Doxyfile
 DOCS_DIR := $(BUILD_DIR)/docs/doxygen
 DOCS_HTML_DIR := $(DOCS_DIR)/html
@@ -63,7 +65,7 @@ APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
 APP_OBJ += $(OBJ_DIR)/snapshot_comparison.o
 OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison plot plot-snapshot-comparison video-snapshot-comparison docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
@@ -94,20 +96,29 @@ plot: | $(PLOT_DIR)
 	fi; \
 	$(PYTHON) $(PLOT_SCRIPT) --input "$$latest_file"
 
-plot-snapshot-comparison: build | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
-	@snapshot_file="$(DATA_OUTPUT_DIR)/$(TIMESTAMP)_solution_snapshot_comparison.csv"; \
-	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
-	SARGAZO_SNAPSHOT_COMPARISON_FILE="$$snapshot_file" \
-	$(SNAPSHOT_COMPARISON_TARGET); \
-	$(PYTHON) $(SNAPSHOT_PLOT_SCRIPT) --input "$$snapshot_file" $(SNAPSHOT_PLOT_ARGS)
+plot-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+	if [ -z "$$latest_file" ]; then \
+		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
+		exit 1; \
+	fi; \
+	$(PYTHON) $(SNAPSHOT_PLOT_SCRIPT) --input "$$latest_file" $(SNAPSHOT_PLOT_ARGS)
 
-video-snapshot-comparison: build | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
-	@snapshot_file="$(DATA_OUTPUT_DIR)/$(TIMESTAMP)_solution_snapshot_comparison.csv"; \
-	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
-	SARGAZO_SNAPSHOT_USE_FRAME_COUNT=1 \
-	SARGAZO_SNAPSHOT_COMPARISON_FILE="$$snapshot_file" \
-	$(SNAPSHOT_COMPARISON_TARGET); \
-	$(PYTHON) $(SNAPSHOT_VIDEO_SCRIPT) --input "$$snapshot_file" $(SNAPSHOT_VIDEO_ARGS)
+video-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+	if [ -z "$$latest_file" ]; then \
+		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
+		exit 1; \
+	fi; \
+	$(PYTHON) $(SNAPSHOT_VIDEO_SCRIPT) --input "$$latest_file" $(SNAPSHOT_VIDEO_ARGS)
+
+plot-3d-rugosity: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+	if [ -z "$$latest_file" ]; then \
+		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
+		exit 1; \
+	fi; \
+	$(PYTHON) $(SNAPSHOT_3D_SCRIPT) --input "$$latest_file" $(SNAPSHOT_3D_ARGS)
 
 docs:
 	mkdir -p $(DOCS_DIR)

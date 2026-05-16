@@ -121,7 +121,11 @@ def choose_writer_name(requested_writer: str, output_argument: str | None) -> st
 
 def build_writer(writer_name: str, fps: int) -> animation.AbstractMovieWriter:
     if writer_name == "ffmpeg":
-        return animation.FFMpegWriter(fps=fps, codec="libx264")
+        return animation.FFMpegWriter(
+            fps=fps,
+            codec="libx264",
+            extra_args=["-pix_fmt", "yuv420p"],
+        )
     if writer_name == "pillow":
         return animation.PillowWriter(fps=fps)
 
