@@ -31,6 +31,7 @@ module driver_support_mod
     public :: load_core_runtime_configuration
     public :: load_monte_carlo_configuration
     public :: load_snapshot_configuration
+    public :: load_snapshot_plot_grid_configuration
     public :: load_runtime_configuration
     public :: normalize_output_timestamp
     public :: read_wall_time_seconds
@@ -229,6 +230,24 @@ contains
             end if
         end if
     end subroutine load_snapshot_configuration
+
+    subroutine load_snapshot_plot_grid_configuration(grid, plot_nx, plot_ny)
+        type(spatial_grid_t), intent(in) :: grid
+        integer, intent(inout) :: plot_nx
+        integer, intent(inout) :: plot_ny
+
+        plot_nx = grid%nx
+        plot_ny = grid%ny
+
+        call read_integer_env("SARGAZO_SNAPSHOT_GRID_NX", plot_nx)
+        call read_integer_env("SARGAZO_SNAPSHOT_GRID_NY", plot_ny)
+
+        if (plot_nx < 2 .or. plot_ny < 2) then
+            write (*, '(a)') &
+                "SARGAZO_SNAPSHOT_GRID_NX/Y must be at least 2 for field output."
+            error stop
+        end if
+    end subroutine load_snapshot_plot_grid_configuration
 
     subroutine build_uniform_snapshot_times(&
         time_step, n_observations, initial_time, final_time, frame_count, &

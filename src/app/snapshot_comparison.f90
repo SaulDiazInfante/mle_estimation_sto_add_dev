@@ -10,6 +10,7 @@ program snapshot_comparison_driver
     use driver_support_mod, only: default_snapshot_comparison_name
     use driver_support_mod, only: load_core_runtime_configuration
     use driver_support_mod, only: load_snapshot_configuration
+    use driver_support_mod, only: load_snapshot_plot_grid_configuration
     use driver_support_mod, only: normalize_output_timestamp
     use model_types_mod, only: dp
     use model_types_mod, only: sde_parameters_t
@@ -20,6 +21,8 @@ program snapshot_comparison_driver
     type(spatial_grid_t) :: grid
     type(sde_parameters_t) :: sde_parameters
     integer :: seed_value
+    integer :: plot_nx
+    integer :: plot_ny
     real(dp), allocatable :: deterministic_fields(:, :, :)
     real(dp), allocatable :: snapshot_times(:)
     real(dp), allocatable :: stochastic_fields(:, :, :)
@@ -38,6 +41,7 @@ program snapshot_comparison_driver
         sde_parameters%time_step, sde_parameters%n_observations, snapshot_times, &
         snapshot_file &
     )
+    call load_snapshot_plot_grid_configuration(grid, plot_nx, plot_ny)
     call normalize_output_timestamp(output_timestamp)
     call assign_default_output_path(&
         output_timestamp, default_snapshot_comparison_name, snapshot_file &
@@ -45,7 +49,7 @@ program snapshot_comparison_driver
 
     call run_snapshot_comparison(&
         grid, sde_parameters, seed_value, snapshot_times, x_coordinates, &
-        y_coordinates, deterministic_fields, stochastic_fields, &
+        y_coordinates, deterministic_fields, stochastic_fields, plot_nx, plot_ny, &
         report_progress=.true. &
     )
     call write_solution_snapshot_comparison_csv(&

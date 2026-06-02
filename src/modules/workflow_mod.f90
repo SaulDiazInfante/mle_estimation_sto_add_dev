@@ -12,9 +12,9 @@ module workflow_mod
     use sde_simulation_mod, only: set_random_seed
     use sde_simulation_mod, only: simulate_state_history
     use sde_simulation_mod, only: simulate_state_snapshots
+    use solution_reconstruction_mod, only: build_endpoint_plot_coordinates
+    use solution_reconstruction_mod, only: reconstruct_solution_snapshots
     use spectral_operators_mod, only: assemble_problem_operators
-    use spectral_operators_mod, only: build_cell_center_coordinates
-    use spectral_operators_mod, only: reconstruct_field_from_modes
     use validation_mod, only: ensure_finite
     implicit none
     private
@@ -72,13 +72,15 @@ contains
     !! them on the physical grid.
     subroutine run_snapshot_comparison(&
         grid, parameters, seed_value, snapshot_times, x_coordinates, &
-        y_coordinates, deterministic_fields, stochastic_fields, &
+        y_coordinates, deterministic_fields, stochastic_fields, plot_nx, plot_ny, &
         report_progress &
     )
         type(spatial_grid_t), intent(in) :: grid
         type(sde_parameters_t), intent(in) :: parameters
         integer, intent(in) :: seed_value
         real(dp), intent(in) :: snapshot_times(:)
+        integer, intent(in) :: plot_nx
+        integer, intent(in) :: plot_ny
         real(dp), allocatable, intent(out) :: x_coordinates(:)
         real(dp), allocatable, intent(out) :: y_coordinates(:)
         real(dp), allocatable, intent(out) :: deterministic_fields(:, :, :)
@@ -87,12 +89,10 @@ contains
 
         integer, allocatable :: checkpoints(:)
         type(sde_parameters_t) :: deterministic_parameters
-        real(dp), allocatable :: reconstructed_field(:, :)
         real(dp), allocatable :: deterministic_snapshots(:, :)
         real(dp), allocatable :: stochastic_snapshots(:, :)
         type(spectral_operator_set_t) :: operators
         logical :: progress_enabled
-        integer :: snapshot_index
 
         progress_enabled = .false.
         if (present(report_progress)) progress_enabled = report_progress
@@ -125,26 +125,19 @@ contains
         )
         call ensure_finite("deterministic_snapshots", deterministic_snapshots)
 
-        call build_cell_center_coordinates(grid, x_coordinates, y_coordinates)
-        allocate (deterministic_fields(grid%nx, grid%ny, size(snapshot_times)))
-        allocate (stochastic_fields(grid%nx, grid%ny, size(snapshot_times)))
-
-        do snapshot_index = 1, size(snapshot_times)
-            call reconstruct_field_from_modes(&
-                grid, operators%mode_pairs, &
-                deterministic_snapshots(snapshot_index, :), &
-                reconstructed_field &
-            )
-            deterministic_fields(:, :, snapshot_index) = reconstructed_field
-            call ensure_finite("deterministic_field", reconstructed_field)
-
-            call reconstruct_field_from_modes(&
-                grid, operators%mode_pairs, &
-                stochastic_snapshots(snapshot_index, :), reconstructed_field &
-            )
-            stochastic_fields(:, :, snapshot_index) = reconstructed_field
-            call ensure_finite("stochastic_field", reconstructed_field)
-        end do
+        call build_endpoint_plot_coordinates(&
+            grid, plot_nx, plot_ny, x_coordinates, y_coordinates &
+        )
+        call reconstruct_solution_snapshots(&
+            grid, operators%mode_pairs, deterministic_snapshots, x_coordinates, &
+            y_coordinates, deterministic_fields &
+        )
+        call reconstruct_solution_snapshots(&
+            grid, operators%mode_pairs, stochastic_snapshots, x_coordinates, &
+            y_coordinates, stochastic_fields &
+        )
+        call ensure_finite("deterministic_fields", deterministic_fields)
+        call ensure_finite("stochastic_fields", stochastic_fields)
     end subroutine run_snapshot_comparison
 
     !> Converts requested physical times into stored observation checkpoints.

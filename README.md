@@ -65,6 +65,8 @@ The driver reads environment variables so tests and CI can run a smaller case wi
 - `SARGAZO_SNAPSHOT_FRAME_COUNT`
 - `SARGAZO_SNAPSHOT_INITIAL_TIME`
 - `SARGAZO_SNAPSHOT_FINAL_TIME`
+- `SARGAZO_SNAPSHOT_GRID_NX`
+- `SARGAZO_SNAPSHOT_GRID_NY`
 - `SARGAZO_SNAPSHOT_COMPARISON_FILE`
 
 You can also provide `TIMESTAMP=20260317T124705` to `make run`
@@ -151,7 +153,13 @@ You can override the snapshot-specific settings with:
 - `SARGAZO_SNAPSHOT_FRAME_COUNT`
 - `SARGAZO_SNAPSHOT_INITIAL_TIME`
 - `SARGAZO_SNAPSHOT_FINAL_TIME`
+- `SARGAZO_SNAPSHOT_GRID_NX`
+- `SARGAZO_SNAPSHOT_GRID_NY`
 - `SARGAZO_SNAPSHOT_COMPARISON_FILE`
+
+`SARGAZO_SNAPSHOT_GRID_NX` and `SARGAZO_SNAPSHOT_GRID_NY` control only the
+physical plotting grid used for reconstructed fields. They default to
+`SARGAZO_GRID_NX/Y`, but can be larger or smaller than the spectral truncation.
 
 For videos, use a frame count instead of listing every time manually. For example:
 

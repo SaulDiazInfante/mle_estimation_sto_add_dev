@@ -7,10 +7,11 @@ module validation_mod
     implicit none
     private
 
-    !> Generic validation entry point for rank-1 and rank-2 real arrays.
+    !> Generic validation entry point for rank-1, rank-2, and rank-3 real arrays.
     interface ensure_finite
         module procedure ensure_finite_vector
         module procedure ensure_finite_matrix
+        module procedure ensure_finite_tensor
     end interface ensure_finite
 
     public :: ensure_finite
@@ -38,5 +39,16 @@ contains
             error stop
         end if
     end subroutine ensure_finite_matrix
+
+    !> Validates that a rank-3 array contains only finite floating-point values.
+    subroutine ensure_finite_tensor(label, values)
+        character(len=*), intent(in) :: label
+        real(dp), intent(in) :: values(:, :, :)
+
+        if (any(.not. ieee_is_finite(values))) then
+            write (*, '(a)') trim(label)//" contains non-finite values"
+            error stop
+        end if
+    end subroutine ensure_finite_tensor
 
 end module validation_mod

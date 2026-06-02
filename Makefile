@@ -33,6 +33,7 @@ SNAPSHOT_3D_SCRIPT := visualization/scripts/plot_3d_rugosity_comparison.py
 SNAPSHOT_PLOT_ARGS ?=
 SNAPSHOT_VIDEO_ARGS ?=
 SNAPSHOT_3D_ARGS ?=
+SNAPSHOT_FRAME_COUNT ?=
 DOXYFILE := docs/Doxyfile
 DOCS_DIR := $(BUILD_DIR)/docs/doxygen
 DOCS_HTML_DIR := $(DOCS_DIR)/html
@@ -43,6 +44,7 @@ MODULE_SRC := \
 	$(MODULE_DIR)/validation_mod.f90 \
 	$(MODULE_DIR)/csv_output_mod.f90 \
 	$(MODULE_DIR)/spectral_operators_mod.f90 \
+	$(MODULE_DIR)/solution_reconstruction_mod.f90 \
 	$(MODULE_DIR)/progress_reporting_mod.f90 \
 	$(MODULE_DIR)/sde_simulation_mod.f90 \
 	$(MODULE_DIR)/parameter_ml_estimation_mod.f90 \
@@ -54,6 +56,7 @@ COMMON_MODULE_OBJ := \
 	$(OBJ_DIR)/validation_mod.o \
 	$(OBJ_DIR)/csv_output_mod.o \
 	$(OBJ_DIR)/spectral_operators_mod.o \
+	$(OBJ_DIR)/solution_reconstruction_mod.o \
 	$(OBJ_DIR)/progress_reporting_mod.o \
 	$(OBJ_DIR)/sde_simulation_mod.o \
 	$(OBJ_DIR)/parameter_ml_estimation_mod.o \
@@ -86,7 +89,9 @@ run-monte-carlo-paper: build | $(DATA_OUTPUT_DIR)
 	$(MONTE_CARLO_TARGET)
 
 run-snapshot-comparison: build | $(DATA_OUTPUT_DIR)
-	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(SNAPSHOT_COMPARISON_TARGET)
+	SARGAZO_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
+	$(if $(SNAPSHOT_FRAME_COUNT),SARGAZO_SNAPSHOT_USE_FRAME_COUNT=1 SARGAZO_SNAPSHOT_FRAME_COUNT='$(SNAPSHOT_FRAME_COUNT)') \
+	$(SNAPSHOT_COMPARISON_TARGET)
 
 plot: | $(PLOT_DIR)
 	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_ESTIMATOR_PATTERN)' | sort | tail -n 1)"; \
@@ -191,6 +196,9 @@ $(OBJ_DIR)/driver_support_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/validation_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/csv_output_mod.o: $(OBJ_DIR)/model_types_mod.o
 $(OBJ_DIR)/spectral_operators_mod.o: $(OBJ_DIR)/model_types_mod.o
+$(OBJ_DIR)/solution_reconstruction_mod.o: \
+	$(OBJ_DIR)/model_types_mod.o \
+	$(OBJ_DIR)/spectral_operators_mod.o
 $(OBJ_DIR)/sde_simulation_mod.o: \
 	$(OBJ_DIR)/model_types_mod.o \
 	$(OBJ_DIR)/progress_reporting_mod.o
@@ -202,6 +210,7 @@ $(OBJ_DIR)/workflow_mod.o: \
 	$(OBJ_DIR)/model_types_mod.o \
 	$(OBJ_DIR)/parameter_ml_estimation_mod.o \
 	$(OBJ_DIR)/sde_simulation_mod.o \
+	$(OBJ_DIR)/solution_reconstruction_mod.o \
 	$(OBJ_DIR)/spectral_operators_mod.o \
 	$(OBJ_DIR)/validation_mod.o
 $(OBJ_DIR)/monte_carlo_study_mod.o: \

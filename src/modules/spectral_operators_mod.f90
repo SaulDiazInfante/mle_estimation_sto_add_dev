@@ -13,6 +13,7 @@ module spectral_operators_mod
 
     public :: assemble_problem_operators
     public :: build_cell_center_coordinates
+    public :: evaluate_basis_function
     public :: reconstruct_field_from_modes
 
 contains
