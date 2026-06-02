@@ -46,20 +46,20 @@ contains
         integer, intent(inout) :: seed
         character(len=:), allocatable, intent(inout) :: output_timestamp
 
-        call read_integer_env("SARGAZO_GRID_NX", grid%nx)
-        call read_integer_env("SARGAZO_GRID_NY", grid%ny)
-        call read_integer_env("SARGAZO_VELOCITY_MODE_X", grid%velocity_mode_x)
-        call read_integer_env("SARGAZO_VELOCITY_MODE_Y", grid%velocity_mode_y)
-        call read_real_env("SARGAZO_LENGTH_X", grid%length_x)
-        call read_real_env("SARGAZO_LENGTH_Y", grid%length_y)
-        call read_real_env("SARGAZO_GAMMA", grid%gamma)
-        call read_integer_env("SARGAZO_N_OBSERVATIONS", parameters%n_observations)
-        call read_real_env("SARGAZO_TIME_STEP", parameters%time_step)
-        call read_real_env("SARGAZO_BETA", parameters%beta)
-        call read_real_env("SARGAZO_THETA", parameters%theta)
-        call read_real_env("SARGAZO_SIGMA", parameters%sigma)
-        call read_integer_env("SARGAZO_SEED", seed)
-        call read_string_env("SARGAZO_OUTPUT_TIMESTAMP", output_timestamp)
+        call read_integer_env("SPDE_GRID_NX", grid%nx)
+        call read_integer_env("SPDE_GRID_NY", grid%ny)
+        call read_integer_env("SPDE_VELOCITY_MODE_X", grid%velocity_mode_x)
+        call read_integer_env("SPDE_VELOCITY_MODE_Y", grid%velocity_mode_y)
+        call read_real_env("SPDE_LENGTH_X", grid%length_x)
+        call read_real_env("SPDE_LENGTH_Y", grid%length_y)
+        call read_real_env("SPDE_GAMMA", grid%gamma)
+        call read_integer_env("SPDE_N_OBSERVATIONS", parameters%n_observations)
+        call read_real_env("SPDE_TIME_STEP", parameters%time_step)
+        call read_real_env("SPDE_BETA", parameters%beta)
+        call read_real_env("SPDE_THETA", parameters%theta)
+        call read_real_env("SPDE_SIGMA", parameters%sigma)
+        call read_integer_env("SPDE_SEED", seed)
+        call read_string_env("SPDE_OUTPUT_TIMESTAMP", output_timestamp)
 
         call validate_grid_configuration(grid)
         call validate_sde_configuration(parameters)
@@ -81,13 +81,13 @@ contains
         character(len=:), allocatable, intent(inout) :: estimator_history_path
 
         call load_core_runtime_configuration(grid, parameters, seed, output_timestamp)
-        call read_integer_env("SARGAZO_REQUESTED_TRAJECTORY_POINTS", requested_points)
+        call read_integer_env("SPDE_REQUESTED_TRAJECTORY_POINTS", requested_points)
         call read_integer_env(&
-            "SARGAZO_MINIMUM_TRAJECTORY_OBSERVATIONS", minimum_points &
+            "SPDE_MINIMUM_TRAJECTORY_OBSERVATIONS", minimum_points &
         )
-        call read_logical_env("SARGAZO_WRITE_STATE_HISTORY", write_state_history)
-        call read_string_env("SARGAZO_STATE_HISTORY_FILE", state_history_path)
-        call read_string_env("SARGAZO_ESTIMATOR_HISTORY_FILE", estimator_history_path)
+        call read_logical_env("SPDE_WRITE_STATE_HISTORY", write_state_history)
+        call read_string_env("SPDE_STATE_HISTORY_FILE", state_history_path)
+        call read_string_env("SPDE_ESTIMATOR_HISTORY_FILE", estimator_history_path)
 
         if (minimum_points > parameters%n_observations) then
             minimum_points = max(2, parameters%n_observations)
@@ -118,42 +118,42 @@ contains
             study_config%time_steps, [base_parameters%time_step] &
         )
 
-        call read_integer_env("SARGAZO_MC_REPLICATES", study_config%n_replicates)
+        call read_integer_env("SPDE_MC_REPLICATES", study_config%n_replicates)
         call read_integer_vector_env(&
-            "SARGAZO_MC_BASIS_LEVELS", study_config%basis_levels &
+            "SPDE_MC_BASIS_LEVELS", study_config%basis_levels &
         )
         call read_integer_vector_env(&
-            "SARGAZO_MC_N_OBSERVATIONS", study_config%observation_counts &
+            "SPDE_MC_N_OBSERVATIONS", study_config%observation_counts &
         )
         call read_real_vector_env( &
-            "SARGAZO_MC_TIME_STEPS", study_config%time_steps &
+            "SPDE_MC_TIME_STEPS", study_config%time_steps &
         )
-        call read_string_env("SARGAZO_MC_SUMMARY_FILE", summary_path)
-        call read_string_env("SARGAZO_MC_REPLICATE_FILE", replicate_path)
+        call read_string_env("SPDE_MC_SUMMARY_FILE", summary_path)
+        call read_string_env("SPDE_MC_REPLICATE_FILE", replicate_path)
 
         if (study_config%n_replicates < 1) then
-            write (*, '(a)') "SARGAZO_MC_REPLICATES must be positive."
+            write (*, '(a)') "SPDE_MC_REPLICATES must be positive."
             error stop
         end if
 
         if (.not. allocated(study_config%basis_levels) .or. &
             size(study_config%basis_levels) < 1 .or. &
             any(study_config%basis_levels < 1)) then
-            write (*, '(a)') "SARGAZO_MC_BASIS_LEVELS must contain positive integers."
+            write (*, '(a)') "SPDE_MC_BASIS_LEVELS must contain positive integers."
             error stop
         end if
 
         if (.not. allocated(study_config%observation_counts) .or. &
             size(study_config%observation_counts) < 1 .or. &
             any(study_config%observation_counts < 2)) then
-            write (*, '(a)') "SARGAZO_MC_N_OBSERVATIONS must be at least 2."
+            write (*, '(a)') "SPDE_MC_N_OBSERVATIONS must be at least 2."
             error stop
         end if
 
         if (.not. allocated(study_config%time_steps) .or. &
             size(study_config%time_steps) < 1 .or. &
             any(study_config%time_steps <= 0.0_dp)) then
-            write (*, '(a)') "SARGAZO_MC_TIME_STEPS must contain positive values."
+            write (*, '(a)') "SPDE_MC_TIME_STEPS must contain positive values."
             error stop
         end if
     end subroutine load_monte_carlo_configuration
@@ -175,24 +175,24 @@ contains
         logical :: use_frame_count
 
         call set_default_real_vector(snapshot_times, [0.0_dp, 0.5_dp, 2.0_dp])
-        call read_real_vector_env("SARGAZO_SNAPSHOT_TIMES", snapshot_times)
-        call read_string_env("SARGAZO_SNAPSHOT_COMPARISON_FILE", snapshot_path)
+        call read_real_vector_env("SPDE_SNAPSHOT_TIMES", snapshot_times)
+        call read_string_env("SPDE_SNAPSHOT_COMPARISON_FILE", snapshot_path)
         use_frame_count = .false.
-        call read_logical_env("SARGAZO_SNAPSHOT_USE_FRAME_COUNT", use_frame_count)
+        call read_logical_env("SPDE_SNAPSHOT_USE_FRAME_COUNT", use_frame_count)
         has_frame_count = environment_variable_is_present(&
-            "SARGAZO_SNAPSHOT_FRAME_COUNT" &
+            "SPDE_SNAPSHOT_FRAME_COUNT" &
         )
         has_initial_time = environment_variable_is_present(&
-            "SARGAZO_SNAPSHOT_INITIAL_TIME" &
+            "SPDE_SNAPSHOT_INITIAL_TIME" &
         )
         has_final_time = environment_variable_is_present(&
-            "SARGAZO_SNAPSHOT_FINAL_TIME" &
+            "SPDE_SNAPSHOT_FINAL_TIME" &
         )
 
         if (use_frame_count) then
             if (.not. has_frame_count) then
                 write (*, '(a)') &
-                    "SARGAZO_SNAPSHOT_USE_FRAME_COUNT requires SARGAZO_SNAPSHOT_FRAME_COUNT."
+                    "SPDE_SNAPSHOT_USE_FRAME_COUNT requires SPDE_SNAPSHOT_FRAME_COUNT."
                 error stop
             end if
 
@@ -200,16 +200,16 @@ contains
             initial_time = 0.0_dp
             final_time = (real(n_observations, dp) - 1.0_dp) * time_step
 
-            call read_integer_env("SARGAZO_SNAPSHOT_FRAME_COUNT", frame_count)
-            call read_real_env("SARGAZO_SNAPSHOT_INITIAL_TIME", initial_time)
-            call read_real_env("SARGAZO_SNAPSHOT_FINAL_TIME", final_time)
+            call read_integer_env("SPDE_SNAPSHOT_FRAME_COUNT", frame_count)
+            call read_real_env("SPDE_SNAPSHOT_INITIAL_TIME", initial_time)
+            call read_real_env("SPDE_SNAPSHOT_FINAL_TIME", final_time)
             call build_uniform_snapshot_times(&
                 time_step, n_observations, initial_time, final_time, &
                 frame_count, snapshot_times &
             )
         else if (has_initial_time .or. has_final_time) then
             write (*, '(a)') &
-                "SARGAZO_SNAPSHOT_INITIAL_TIME and SARGAZO_SNAPSHOT_FINAL_TIME require SARGAZO_SNAPSHOT_USE_FRAME_COUNT=1."
+                "SPDE_SNAPSHOT_INITIAL_TIME and SPDE_SNAPSHOT_FINAL_TIME require SPDE_SNAPSHOT_USE_FRAME_COUNT=1."
             error stop
         end if
 
@@ -239,12 +239,12 @@ contains
         plot_nx = grid%nx
         plot_ny = grid%ny
 
-        call read_integer_env("SARGAZO_SNAPSHOT_GRID_NX", plot_nx)
-        call read_integer_env("SARGAZO_SNAPSHOT_GRID_NY", plot_ny)
+        call read_integer_env("SPDE_SNAPSHOT_GRID_NX", plot_nx)
+        call read_integer_env("SPDE_SNAPSHOT_GRID_NY", plot_ny)
 
         if (plot_nx < 2 .or. plot_ny < 2) then
             write (*, '(a)') &
-                "SARGAZO_SNAPSHOT_GRID_NX/Y must be at least 2 for field output."
+                "SPDE_SNAPSHOT_GRID_NX/Y must be at least 2 for field output."
             error stop
         end if
     end subroutine load_snapshot_plot_grid_configuration
@@ -269,12 +269,12 @@ contains
         real(dp) :: tolerance
 
         if (frame_count < 1) then
-            write (*, '(a)') "SARGAZO_SNAPSHOT_FRAME_COUNT must be positive."
+            write (*, '(a)') "SPDE_SNAPSHOT_FRAME_COUNT must be positive."
             error stop
         end if
 
         if (time_step <= 0.0_dp) then
-            write (*, '(a)') "SARGAZO_TIME_STEP must be positive."
+            write (*, '(a)') "SPDE_TIME_STEP must be positive."
             error stop
         end if
 
@@ -287,7 +287,7 @@ contains
 
         if (final_time > horizon_time) then
             write (*, '(a)') &
-                "SARGAZO_SNAPSHOT_FINAL_TIME exceeds the simulated time horizon."
+                "SPDE_SNAPSHOT_FINAL_TIME exceeds the simulated time horizon."
             error stop
         end if
 
@@ -296,13 +296,13 @@ contains
         final_step = nint(final_time / time_step)
         if (abs(real(initial_step, dp) * time_step - initial_time) > tolerance) then
             write (*, '(a)') &
-                "SARGAZO_SNAPSHOT_INITIAL_TIME must align with SARGAZO_TIME_STEP."
+                "SPDE_SNAPSHOT_INITIAL_TIME must align with SPDE_TIME_STEP."
             error stop
         end if
 
         if (abs(real(final_step, dp) * time_step - final_time) > tolerance) then
             write (*, '(a)') &
-                "SARGAZO_SNAPSHOT_FINAL_TIME must align with SARGAZO_TIME_STEP."
+                "SPDE_SNAPSHOT_FINAL_TIME must align with SPDE_TIME_STEP."
             error stop
         end if
 
@@ -310,7 +310,7 @@ contains
         available_steps = span_steps + 1
         if (frame_count > available_steps) then
             write (*, '(a)') &
-                "SARGAZO_SNAPSHOT_FRAME_COUNT exceeds the available time-grid points in the requested interval."
+                "SPDE_SNAPSHOT_FRAME_COUNT exceeds the available time-grid points in the requested interval."
             error stop
         end if
 
@@ -574,17 +574,17 @@ contains
         type(sde_parameters_t), intent(in) :: parameters
 
         if (parameters%n_observations < 1) then
-            write (*, '(a)') "SARGAZO_N_OBSERVATIONS must be at least 1."
+            write (*, '(a)') "SPDE_N_OBSERVATIONS must be at least 1."
             error stop
         end if
 
         if (parameters%time_step <= 0.0_dp) then
-            write (*, '(a)') "SARGAZO_TIME_STEP must be positive."
+            write (*, '(a)') "SPDE_TIME_STEP must be positive."
             error stop
         end if
 
         if (parameters%sigma < 0.0_dp) then
-            write (*, '(a)') "SARGAZO_SIGMA must be non-negative."
+            write (*, '(a)') "SPDE_SIGMA must be non-negative."
             error stop
         end if
     end subroutine validate_sde_configuration
@@ -597,13 +597,13 @@ contains
         integer, intent(in) :: total_points
 
         if (requested_points < 1) then
-            write (*, '(a)') "SARGAZO_REQUESTED_TRAJECTORY_POINTS must be positive."
+            write (*, '(a)') "SPDE_REQUESTED_TRAJECTORY_POINTS must be positive."
             error stop
         end if
 
         if (minimum_points < 2 .or. minimum_points > total_points) then
             write (*, '(a)') &
-                "SARGAZO_MINIMUM_TRAJECTORY_OBSERVATIONS must belong to [2, n_observations]."
+                "SPDE_MINIMUM_TRAJECTORY_OBSERVATIONS must belong to [2, n_observations]."
             error stop
         end if
     end subroutine validate_trajectory_configuration

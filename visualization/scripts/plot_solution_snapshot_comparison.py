@@ -297,28 +297,28 @@ def main() -> None:
         args.velocity_mode_x,
         metadata,
         "velocity_mode_x",
-        "SARGAZO_VELOCITY_MODE_X",
+        "SPDE_VELOCITY_MODE_X",
         1,
     )
     velocity_mode_y = read_int_setting(
         args.velocity_mode_y,
         metadata,
         "velocity_mode_y",
-        "SARGAZO_VELOCITY_MODE_Y",
+        "SPDE_VELOCITY_MODE_Y",
         1,
     )
     length_x = read_float_setting(
         args.length_x,
         metadata,
         "length_x",
-        "SARGAZO_LENGTH_X",
+        "SPDE_LENGTH_X",
         5.0,
     )
     length_y = read_float_setting(
         args.length_y,
         metadata,
         "length_y",
-        "SARGAZO_LENGTH_Y",
+        "SPDE_LENGTH_Y",
         5.0,
     )
     quiver_stride = args.quiver_stride

@@ -1,4 +1,4 @@
-PROJECT_NAME           = "Sargazo ML Estimation"
+PROJECT_NAME           = "Stochastic Convection-Diffusion MLE"
 PROJECT_BRIEF          = "Fortran tools for SDE simulation, parameter estimation, and trajectory visualization."
 OUTPUT_DIRECTORY       = build/docs/doxygen
 OUTPUT_LANGUAGE        = English

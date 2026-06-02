@@ -1,6 +1,8 @@
-# Sargazo ML Estimation
+# Stochastic Convection-Diffusion MLE
 
-This repository contains the maintained Fortran implementation for simulating the SDE system, estimating model parameters, and visualizing estimator trajectories.
+This repository contains the maintained Fortran implementation for simulating
+the spectral Galerkin system associated with a stochastic convection-diffusion
+equation, estimating model parameters, and visualizing estimator trajectories.
 
 ## Repository layout
 
@@ -42,32 +44,32 @@ Generated filenames use a filesystem-safe ISO 8601 basic timestamp prefix, for e
 
 The driver reads environment variables so tests and CI can run a smaller case without editing source code:
 
-- `SARGAZO_N_OBSERVATIONS`
-- `SARGAZO_MINIMUM_TRAJECTORY_OBSERVATIONS`
-- `SARGAZO_REQUESTED_TRAJECTORY_POINTS`
-- `SARGAZO_TIME_STEP`
-- `SARGAZO_GRID_NX`
-- `SARGAZO_GRID_NY`
-- `SARGAZO_VELOCITY_MODE_X`
-- `SARGAZO_VELOCITY_MODE_Y`
-- `SARGAZO_LENGTH_X`
-- `SARGAZO_LENGTH_Y`
-- `SARGAZO_GAMMA`
-- `SARGAZO_BETA`
-- `SARGAZO_THETA`
-- `SARGAZO_SIGMA`
-- `SARGAZO_SEED`
-- `SARGAZO_OUTPUT_TIMESTAMP`
-- `SARGAZO_WRITE_STATE_HISTORY`
-- `SARGAZO_STATE_HISTORY_FILE`
-- `SARGAZO_ESTIMATOR_HISTORY_FILE`
-- `SARGAZO_SNAPSHOT_TIMES`
-- `SARGAZO_SNAPSHOT_FRAME_COUNT`
-- `SARGAZO_SNAPSHOT_INITIAL_TIME`
-- `SARGAZO_SNAPSHOT_FINAL_TIME`
-- `SARGAZO_SNAPSHOT_GRID_NX`
-- `SARGAZO_SNAPSHOT_GRID_NY`
-- `SARGAZO_SNAPSHOT_COMPARISON_FILE`
+- `SPDE_N_OBSERVATIONS`
+- `SPDE_MINIMUM_TRAJECTORY_OBSERVATIONS`
+- `SPDE_REQUESTED_TRAJECTORY_POINTS`
+- `SPDE_TIME_STEP`
+- `SPDE_GRID_NX`
+- `SPDE_GRID_NY`
+- `SPDE_VELOCITY_MODE_X`
+- `SPDE_VELOCITY_MODE_Y`
+- `SPDE_LENGTH_X`
+- `SPDE_LENGTH_Y`
+- `SPDE_GAMMA`
+- `SPDE_BETA`
+- `SPDE_THETA`
+- `SPDE_SIGMA`
+- `SPDE_SEED`
+- `SPDE_OUTPUT_TIMESTAMP`
+- `SPDE_WRITE_STATE_HISTORY`
+- `SPDE_STATE_HISTORY_FILE`
+- `SPDE_ESTIMATOR_HISTORY_FILE`
+- `SPDE_SNAPSHOT_TIMES`
+- `SPDE_SNAPSHOT_FRAME_COUNT`
+- `SPDE_SNAPSHOT_INITIAL_TIME`
+- `SPDE_SNAPSHOT_FINAL_TIME`
+- `SPDE_SNAPSHOT_GRID_NX`
+- `SPDE_SNAPSHOT_GRID_NY`
+- `SPDE_SNAPSHOT_COMPARISON_FILE`
 
 You can also provide `TIMESTAMP=20260317T124705` to `make run`
 to force a specific output prefix. If you pass an older extended form such as
@@ -92,12 +94,12 @@ square spectral basis resolution. The study writes two CSV files:
 
 The study driver reads these additional environment variables:
 
-- `SARGAZO_MC_REPLICATES`
-- `SARGAZO_MC_BASIS_LEVELS`
-- `SARGAZO_MC_N_OBSERVATIONS`
-- `SARGAZO_MC_TIME_STEPS`
-- `SARGAZO_MC_SUMMARY_FILE`
-- `SARGAZO_MC_REPLICATE_FILE`
+- `SPDE_MC_REPLICATES`
+- `SPDE_MC_BASIS_LEVELS`
+- `SPDE_MC_N_OBSERVATIONS`
+- `SPDE_MC_TIME_STEPS`
+- `SPDE_MC_SUMMARY_FILE`
+- `SPDE_MC_REPLICATE_FILE`
 
 List-valued study variables use comma-separated values. The selected paper-style
 preset can be launched directly with:
@@ -108,10 +110,10 @@ make run-monte-carlo-paper
 
 The preset uses:
 
-- `SARGAZO_MC_REPLICATES=1000`
-- `SARGAZO_MC_BASIS_LEVELS=20`
-- `SARGAZO_MC_N_OBSERVATIONS=1000,5000,20000,50000`
-- `SARGAZO_MC_TIME_STEPS=1.0e-7,1.0e-6,1.0e-5,1.0e-4`
+- `SPDE_MC_REPLICATES=1000`
+- `SPDE_MC_BASIS_LEVELS=20`
+- `SPDE_MC_N_OBSERVATIONS=1000,5000,20000,50000`
+- `SPDE_MC_TIME_STEPS=1.0e-7,1.0e-6,1.0e-5,1.0e-4`
 
 You can still override any preset component from the command line. For example:
 
@@ -144,41 +146,41 @@ make video-snapshot-comparison
 
 The targets use different snapshot-selection rules:
 
-- `make run-snapshot-comparison` and `make plot-snapshot-comparison` use `SARGAZO_SNAPSHOT_TIMES`.
-- `make video-snapshot-comparison` regenerates the snapshot CSV using `SARGAZO_SNAPSHOT_FRAME_COUNT`, `SARGAZO_SNAPSHOT_INITIAL_TIME`, and `SARGAZO_SNAPSHOT_FINAL_TIME`.
+- `make run-snapshot-comparison` and `make plot-snapshot-comparison` use `SPDE_SNAPSHOT_TIMES`.
+- `make video-snapshot-comparison` regenerates the snapshot CSV using `SPDE_SNAPSHOT_FRAME_COUNT`, `SPDE_SNAPSHOT_INITIAL_TIME`, and `SPDE_SNAPSHOT_FINAL_TIME`.
 
 You can override the snapshot-specific settings with:
 
-- `SARGAZO_SNAPSHOT_TIMES`
-- `SARGAZO_SNAPSHOT_FRAME_COUNT`
-- `SARGAZO_SNAPSHOT_INITIAL_TIME`
-- `SARGAZO_SNAPSHOT_FINAL_TIME`
-- `SARGAZO_SNAPSHOT_GRID_NX`
-- `SARGAZO_SNAPSHOT_GRID_NY`
-- `SARGAZO_SNAPSHOT_COMPARISON_FILE`
+- `SPDE_SNAPSHOT_TIMES`
+- `SPDE_SNAPSHOT_FRAME_COUNT`
+- `SPDE_SNAPSHOT_INITIAL_TIME`
+- `SPDE_SNAPSHOT_FINAL_TIME`
+- `SPDE_SNAPSHOT_GRID_NX`
+- `SPDE_SNAPSHOT_GRID_NY`
+- `SPDE_SNAPSHOT_COMPARISON_FILE`
 
-`SARGAZO_SNAPSHOT_GRID_NX` and `SARGAZO_SNAPSHOT_GRID_NY` control only the
+`SPDE_SNAPSHOT_GRID_NX` and `SPDE_SNAPSHOT_GRID_NY` control only the
 physical plotting grid used for reconstructed fields. They default to
-`SARGAZO_GRID_NX/Y`, but can be larger or smaller than the spectral truncation.
+`SPDE_GRID_NX/Y`, but can be larger or smaller than the spectral truncation.
 
 For videos, use a frame count instead of listing every time manually. For example:
 
 ```bash
 env \
-  SARGAZO_SNAPSHOT_TIMES=0,0.5,2.0 \
-  SARGAZO_SNAPSHOT_FRAME_COUNT=121 \
-  SARGAZO_SNAPSHOT_FINAL_TIME=2.0 \
+  SPDE_SNAPSHOT_TIMES=0,0.5,2.0 \
+  SPDE_SNAPSHOT_FRAME_COUNT=121 \
+  SPDE_SNAPSHOT_FINAL_TIME=2.0 \
   make video-snapshot-comparison
 ```
 
-`SARGAZO_SNAPSHOT_FRAME_COUNT` generates evenly spaced, time-grid-aligned
-snapshots between `SARGAZO_SNAPSHOT_INITIAL_TIME` and
-`SARGAZO_SNAPSHOT_FINAL_TIME`. This is only activated by
+`SPDE_SNAPSHOT_FRAME_COUNT` generates evenly spaced, time-grid-aligned
+snapshots between `SPDE_SNAPSHOT_INITIAL_TIME` and
+`SPDE_SNAPSHOT_FINAL_TIME`. This is only activated by
 `make video-snapshot-comparison`; it does not replace
-`SARGAZO_SNAPSHOT_TIMES` for the static figure target.
+`SPDE_SNAPSHOT_TIMES` for the static figure target.
 
 A tracked shell environment file is available at
-[`data/input/snapshot_comparison.env`](/home/saul/Desktop/2026_SargazoMLDE/mle_estimation_sto_add_dev/data/input/snapshot_comparison.env:1).
+[`data/input/snapshot_comparison.env`](data/input/snapshot_comparison.env).
 Edit the values there and run:
 
 ```bash

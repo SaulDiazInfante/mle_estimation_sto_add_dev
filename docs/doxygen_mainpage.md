@@ -1,4 +1,4 @@
-# Sargazo ML Estimation Documentation
+# Stochastic Convection-Diffusion MLE Documentation
 
 ## Overview
 
