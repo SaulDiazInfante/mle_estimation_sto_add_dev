@@ -10,9 +10,11 @@ PLOT_SNAPSHOT_FILE="$ROOT_DIR/data/output/${PLOT_TIMESTAMP}_solution_snapshot_co
 VIDEO_SNAPSHOT_FILE="$ROOT_DIR/data/output/${VIDEO_TIMESTAMP}_solution_snapshot_comparison.csv"
 PLOT_FILE="$ARTIFACT_DIR/${PLOT_TIMESTAMP}_solution_snapshot_comparison_smoke.png"
 VIDEO_FILE="$ARTIFACT_DIR/${VIDEO_TIMESTAMP}_solution_snapshot_comparison_smoke.gif"
+PARAVIEW_DIR="$ARTIFACT_DIR/${VIDEO_TIMESTAMP}_paraview_smoke"
 
 mkdir -p "$ARTIFACT_DIR" "$MPL_CONFIG_DIR"
 rm -f "$PLOT_SNAPSHOT_FILE" "$VIDEO_SNAPSHOT_FILE" "$PLOT_FILE" "$VIDEO_FILE"
+rm -rf "$PARAVIEW_DIR"
 
 make -C "$ROOT_DIR" build
 
@@ -58,3 +60,13 @@ env \
 test -f "$VIDEO_SNAPSHOT_FILE"
 test "$(wc -l < "$VIDEO_SNAPSHOT_FILE")" -eq 365
 test -f "$VIDEO_FILE"
+
+make -C "$ROOT_DIR" export-snapshot-paraview \
+    TIMESTAMP="$VIDEO_TIMESTAMP" \
+    SNAPSHOT_PARAVIEW_INPUT="$VIDEO_SNAPSHOT_FILE" \
+    SNAPSHOT_PARAVIEW_DIR="$PARAVIEW_DIR"
+
+test -f "$PARAVIEW_DIR/solution_snapshots.pvd"
+test "$(find "$PARAVIEW_DIR/frames" -maxdepth 1 -type f -name '*.vts' | wc -l)" -eq 5
+grep -q 'Name="deterministic"' "$PARAVIEW_DIR/frames/solution_0000.vts"
+grep -q 'Name="stochastic"' "$PARAVIEW_DIR/frames/solution_0000.vts"

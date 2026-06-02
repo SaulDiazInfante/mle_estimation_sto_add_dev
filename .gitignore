@@ -28,6 +28,9 @@ data/input/cache/**
 visualization/plots/*
 !visualization/plots/.gitkeep
 
+visualization/paraview/*
+!visualization/paraview/.gitkeep
+
 tests/artifacts/*
 !tests/artifacts/.gitkeep
 

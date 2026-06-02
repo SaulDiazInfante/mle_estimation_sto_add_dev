@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""3D surface comparison: smooth deterministic vs rugose stochastic solution.
+"""3D surface comparison: deterministic vs stochastic nonnegative solution.
 
-Produces three side-by-side 3D surface panels:
+Produces two side-by-side 3D surface panels:
   1. Deterministic  – smooth reference surface
   2. Stochastic     – same field perturbed by noise (visually rugose)
-  3. Noise effect   – pointwise difference  u_sto - u_det  (signed, diverging palette)
 
 Usage
 -----
@@ -37,7 +36,7 @@ from plot_solution_snapshot_comparison import (  # noqa: E402
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="3-D rugosity comparison: deterministic (smooth) vs stochastic (rough)."
+        description="3-D comparison: deterministic (smooth) vs stochastic (rough)."
     )
     p.add_argument(
         "--input", default=None,
@@ -68,6 +67,14 @@ def parse_args() -> argparse.Namespace:
         help="Surface opacity [0..1].",
     )
     p.add_argument(
+        "--cmap", default="magma",
+        help="Colormap for the nonnegative solution surfaces.",
+    )
+    p.add_argument(
+        "--contour-levels", type=int, default=18,
+        help="Number of filled contour levels projected onto the xy plane.",
+    )
+    p.add_argument(
         "--dpi", type=int, default=200,
         help="Output image resolution.",
     )
@@ -78,13 +85,6 @@ def parse_args() -> argparse.Namespace:
 
 def _fmt_t(t: float) -> str:
     return f"{t:g}"
-
-
-def _safe_norm(arr: np.ndarray, lo: float, hi: float) -> np.ndarray:
-    span = hi - lo
-    if span < 1e-14:
-        return np.full_like(arr, 0.5)
-    return np.clip((arr - lo) / span, 0.0, 1.0)
 
 
 def _build_surface(
@@ -101,9 +101,12 @@ def _build_surface(
     azim: float,
     title: str,
     zlabel: str,
+    contour_levels: int,
 ) -> None:
     s = stride
-    surf = ax.plot_surface(
+    z_span = max(abs(vmax - vmin), 1e-14)
+    z_floor = 0.0
+    ax.plot_surface(
         X[::s, ::s],
         Y[::s, ::s],
         Z[::s, ::s],
@@ -116,33 +119,58 @@ def _build_surface(
         linewidth=0.0,
         alpha=alpha,
     )
-    # Subtle wireframe outline for the rugosity panels
-    if cmap_name != "RdBu_r":
-        ax.plot_wireframe(
-            X[::s, ::s],
-            Y[::s, ::s],
-            Z[::s, ::s],
-            rstride=max(1, 4 * s),
-            cstride=max(1, 4 * s),
-            color="k",
-            linewidth=0.18,
-            alpha=0.30,
-        )
-    z_pad = 0.06 * max(abs(vmax - vmin), 1e-14)
-    ax.set_zlim(vmin - z_pad, vmax + z_pad)
+    ax.contourf(
+        X,
+        Y,
+        Z,
+        zdir="z",
+        offset=z_floor,
+        levels=contour_levels,
+        cmap=cmap_name,
+        vmin=vmin,
+        vmax=vmax,
+        alpha=0.80,
+    )
+    ax.contour(
+        X,
+        Y,
+        Z,
+        zdir="z",
+        offset=z_floor,
+        levels=max(6, contour_levels // 2),
+        colors="white",
+        linewidths=0.45,
+        alpha=0.60,
+    )
+    ax.plot_wireframe(
+        X[::s, ::s],
+        Y[::s, ::s],
+        Z[::s, ::s],
+        rstride=max(1, 4 * s),
+        cstride=max(1, 4 * s),
+        color="k",
+        linewidth=0.16,
+        alpha=0.26,
+    )
+    z_pad = 0.06 * z_span
+    ax.set_zlim(z_floor, vmax + z_pad)
     ax.view_init(elev=elev, azim=azim)
     ax.set_title(title, fontsize=11, pad=6)
     ax.set_xlabel(r"$x$", labelpad=4)
     ax.set_ylabel(r"$y$", labelpad=4)
     ax.set_zlabel(zlabel, labelpad=4)
     ax.tick_params(axis="both", labelsize=7, pad=2)
-    return surf
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     args = parse_args()
+    if args.stride < 1:
+        raise ValueError("--stride must be at least 1.")
+    if args.contour_levels < 2:
+        raise ValueError("--contour-levels must be at least 2.")
+
     input_path = resolve_input_path(args.input)
 
     times, x_coords, y_coords, fields, _ = load_snapshot_data(input_path)
@@ -150,83 +178,64 @@ def main() -> None:
     t_idx = args.time_index % len(times)
     t = times[t_idx]
 
-    det = fields[("deterministic", t)]
-    sto = fields[("stochastic", t)]
-    diff = sto - det
+    det = np.maximum(fields[("deterministic", t)], 0.0)
+    sto = np.maximum(fields[("stochastic", t)], 0.0)
 
     X, Y = np.meshgrid(x_coords, y_coords)
 
-    # Shared colour / z limits for the det / sto panels
-    vmin = min(det.min(), sto.min())
+    # Shared colour / z limits for the det / sto panels after physical masking.
+    vmin = 0.0
     vmax = max(det.max(), sto.max())
-
-    # Symmetric limits for the difference panel
-    d_lim = max(abs(diff.min()), abs(diff.max()), 1e-14)
+    if vmax <= vmin:
+        vmax = vmin + 1.0e-14
 
     # ── Figure ────────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(19, 6.4))
+    fig = plt.figure(figsize=(13.2, 6.4))
 
-    ax1 = fig.add_subplot(1, 3, 1, projection="3d")
-    ax2 = fig.add_subplot(1, 3, 2, projection="3d")
-    ax3 = fig.add_subplot(1, 3, 3, projection="3d")
+    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
 
-    surf_det = _build_surface(
+    _build_surface(
         ax1, X, Y, det,
-        cmap_name="viridis",
+        cmap_name=args.cmap,
         vmin=vmin, vmax=vmax,
         stride=args.stride, alpha=args.alpha,
         elev=args.elev, azim=args.azim,
         title="Deterministic  (smooth)",
         zlabel=r"$u_{\mathrm{det}}$",
+        contour_levels=args.contour_levels,
     )
 
-    surf_sto = _build_surface(
+    _build_surface(
         ax2, X, Y, sto,
-        cmap_name="viridis",
+        cmap_name=args.cmap,
         vmin=vmin, vmax=vmax,
         stride=args.stride, alpha=args.alpha,
         elev=args.elev, azim=args.azim,
         title="Stochastic  (rugose)",
         zlabel=r"$u_{\mathrm{sto}}$",
-    )
-
-    surf_diff = _build_surface(
-        ax3, X, Y, diff,
-        cmap_name="RdBu_r",
-        vmin=-d_lim, vmax=d_lim,
-        stride=args.stride, alpha=args.alpha,
-        elev=args.elev, azim=args.azim,
-        title=r"Noise effect  ($u_{\mathrm{sto}} - u_{\mathrm{det}}$)",
-        zlabel=r"$\Delta u$",
+        contour_levels=args.contour_levels,
     )
 
     # ── Colorbars ─────────────────────────────────────────────────────────────
     # Shared bar for det + sto
     sm_uv = plt.cm.ScalarMappable(
-        cmap="viridis", norm=plt.Normalize(vmin=vmin, vmax=vmax)
+        cmap=args.cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax)
     )
     sm_uv.set_array([])
     cb1 = fig.colorbar(sm_uv, ax=[ax1, ax2], fraction=0.022, pad=0.06, shrink=0.55)
-    cb1.set_label(r"$u$", fontsize=10)
+    cb1.set_label(r"$u$ (negative values masked to 0)", fontsize=10)
     cb1.ax.tick_params(labelsize=8)
-
-    sm_rb = plt.cm.ScalarMappable(
-        cmap="RdBu_r", norm=plt.Normalize(vmin=-d_lim, vmax=d_lim)
-    )
-    sm_rb.set_array([])
-    cb3 = fig.colorbar(sm_rb, ax=ax3, fraction=0.030, pad=0.06, shrink=0.55)
-    cb3.set_label(r"$\Delta u$", fontsize=10)
-    cb3.ax.tick_params(labelsize=8)
 
     # ── Title & layout ────────────────────────────────────────────────────────
     n_times = len(times)
     fig.suptitle(
-        rf"3-D rugosity comparison   $t = {_fmt_t(t)}$"
+        rf"3-D nonnegative solution comparison   $t = {_fmt_t(t)}$"
         rf"   (snapshot {t_idx % n_times + 1}/{n_times})",
         fontsize=13,
         y=1.00,
     )
-    fig.subplots_adjust(left=0.02, right=0.88, bottom=0.04, top=0.94, wspace=0.05)
+    fig.subplots_adjust(left=0.03, right=0.88, bottom=0.05, top=0.94, wspace=0.04)
 
     # ── Save ──────────────────────────────────────────────────────────────────
     if args.output is not None:

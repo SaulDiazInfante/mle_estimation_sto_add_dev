@@ -26,13 +26,18 @@ SNAPSHOT_COMPARISON_TARGET := $(BIN_DIR)/snapshot_comparison
 
 DATA_OUTPUT_DIR := data/output
 PLOT_DIR := visualization/plots
+PARAVIEW_DIR := visualization/paraview
 PLOT_SCRIPT := visualization/scripts/plot_estimator_trajectory.py
 SNAPSHOT_PLOT_SCRIPT := visualization/scripts/plot_solution_snapshot_comparison.py
 SNAPSHOT_VIDEO_SCRIPT := visualization/scripts/animate_solution_snapshot_comparison.py
 SNAPSHOT_3D_SCRIPT := visualization/scripts/plot_3d_rugosity_comparison.py
+SNAPSHOT_PARAVIEW_SCRIPT := visualization/scripts/export_snapshot_paraview.py
 SNAPSHOT_PLOT_ARGS ?=
 SNAPSHOT_VIDEO_ARGS ?=
 SNAPSHOT_3D_ARGS ?=
+SNAPSHOT_PARAVIEW_ARGS ?=
+SNAPSHOT_PARAVIEW_INPUT ?=
+SNAPSHOT_PARAVIEW_DIR ?= $(PARAVIEW_DIR)/$(TIMESTAMP)_snapshot_paraview
 SNAPSHOT_FRAME_COUNT ?=
 DOXYFILE := docs/Doxyfile
 DOCS_DIR := $(BUILD_DIR)/docs/doxygen
@@ -68,7 +73,7 @@ APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
 APP_OBJ += $(OBJ_DIR)/snapshot_comparison.o
 OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-paraview docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
@@ -124,6 +129,18 @@ plot-3d-rugosity: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
 		exit 1; \
 	fi; \
 	$(PYTHON) $(SNAPSHOT_3D_SCRIPT) --input "$$latest_file" $(SNAPSHOT_3D_ARGS)
+
+export-snapshot-paraview: | $(DATA_OUTPUT_DIR) $(PARAVIEW_DIR)
+	@if [ -n "$(SNAPSHOT_PARAVIEW_INPUT)" ]; then \
+		snapshot_file="$(SNAPSHOT_PARAVIEW_INPUT)"; \
+	else \
+		snapshot_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+	fi; \
+	if [ -z "$$snapshot_file" ]; then \
+		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
+		exit 1; \
+	fi; \
+	$(PYTHON) $(SNAPSHOT_PARAVIEW_SCRIPT) --input "$$snapshot_file" --output-dir "$(SNAPSHOT_PARAVIEW_DIR)" $(SNAPSHOT_PARAVIEW_ARGS)
 
 docs:
 	mkdir -p $(DOCS_DIR)
@@ -218,7 +235,7 @@ $(OBJ_DIR)/monte_carlo_study_mod.o: \
 	$(OBJ_DIR)/progress_reporting_mod.o \
 	$(OBJ_DIR)/workflow_mod.o
 
-$(OBJ_DIR) $(MOD_DIR) $(BIN_DIR) $(DATA_OUTPUT_DIR) $(PLOT_DIR):
+$(OBJ_DIR) $(MOD_DIR) $(BIN_DIR) $(DATA_OUTPUT_DIR) $(PLOT_DIR) $(PARAVIEW_DIR):
 	mkdir -p $@
 
 clean:
@@ -234,6 +251,7 @@ clean:
 		-name 'solution_snapshot_comparison.png' -o -name '*_solution_snapshot_comparison.png' -o \
 		-name 'solution_snapshot_comparison.gif' -o -name '*_solution_snapshot_comparison.gif' -o \
 		-name 'solution_snapshot_comparison.mp4' -o -name '*_solution_snapshot_comparison.mp4' \) -delete
+	find $(PARAVIEW_DIR) -mindepth 1 ! -name '.gitkeep' -exec rm -rf {} +
 	rm -f *.o *.mod multivariate_modular monte_carlo_study snapshot_comparison
 
 distclean: clean

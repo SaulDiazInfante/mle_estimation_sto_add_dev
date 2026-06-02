@@ -290,9 +290,16 @@ def main() -> None:
     output_path = resolve_output_path(args.output, input_path)
 
     times, x_coordinates, y_coordinates, fields, metadata = load_snapshot_data(input_path)
+    display_times = [times[0], times[-1]]
+    display_labels = ["First", "Last"]
+    display_fields = {
+        (kind, time_value): fields[(kind, time_value)]
+        for kind in ["deterministic", "stochastic"]
+        for time_value in display_times
+    }
     x_edges = centers_to_edges(x_coordinates)
     y_edges = centers_to_edges(y_coordinates)
-    vmin, vmax, cmap = choose_color_scale(fields)
+    vmin, vmax, cmap = choose_color_scale(display_fields)
     velocity_mode_x = read_int_setting(
         args.velocity_mode_x,
         metadata,
@@ -335,19 +342,17 @@ def main() -> None:
 
     fig, axes = plt.subplots(
         2,
-        len(times),
-        figsize=(4.1 * len(times), 6.3),
+        2,
+        figsize=(8.8, 6.3),
         sharex=True,
         sharey=True,
     )
-    if len(times) == 1:
-        axes = np.array(axes).reshape(2, 1)
 
     mesh = None
     row_labels = ["Deterministic", "Stochastic"]
     row_kinds = ["deterministic", "stochastic"]
     for row_index, kind in enumerate(row_kinds):
-        for column_index, time_value in enumerate(times):
+        for column_index, time_value in enumerate(display_times):
             ax = axes[row_index, column_index]
             mesh = ax.pcolormesh(
                 x_edges,
@@ -367,7 +372,9 @@ def main() -> None:
                 quiver_stride,
             )
             ax.set_aspect("equal")
-            ax.set_title(rf"$t = {format_time_label(time_value)}$")
+            ax.set_title(
+                rf"{display_labels[column_index]}: $t = {format_time_label(time_value)}$"
+            )
             if row_index == len(row_kinds) - 1:
                 ax.set_xlabel(r"$x$")
             if column_index == 0:

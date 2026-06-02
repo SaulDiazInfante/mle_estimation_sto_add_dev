@@ -13,6 +13,7 @@ equation, estimating model parameters, and visualizing estimator trajectories.
 - `data/output`: generated CSV and text outputs from simulation and estimation runs.
 - `visualization/scripts`: plotting utilities.
 - `visualization/plots`: generated figures.
+- `visualization/paraview`: generated ParaView VTK exports.
 - `docs`: project documentation and engineering notes.
 - `tests`: smoke tests and future regression tests.
 - `.github/workflows`: CI definitions.
@@ -27,6 +28,7 @@ equation, estimating model parameters, and visualizing estimator trajectories.
 - `make plot`: plot the latest generated estimator CSV already present in `data/output/`.
 - `make plot-snapshot-comparison`: plot the latest reconstructed snapshot comparison CSV.
 - `make video-snapshot-comparison`: animate the latest reconstructed snapshot comparison CSV.
+- `make export-snapshot-paraview`: export the latest reconstructed snapshot CSV as ParaView `.pvd` and `.vts` files.
 - `make docs`: build the Doxygen HTML site locally under `build/docs/doxygen/html`.
 - `make test`: run the repository smoke test used by CI.
 - `make test-unit`: run deterministic unit tests.
@@ -142,6 +144,7 @@ Run it with:
 make run-snapshot-comparison
 make plot-snapshot-comparison
 make video-snapshot-comparison
+make export-snapshot-paraview
 ```
 
 The targets use different snapshot-selection rules:
@@ -188,10 +191,29 @@ source data/input/snapshot_comparison.env
 make run-snapshot-comparison
 ```
 
+To export the same animation data for ParaView, run:
+
+```bash
+make export-snapshot-paraview \
+  TIMESTAMP=20260317T124705 \
+  SNAPSHOT_PARAVIEW_INPUT=data/output/spde_animation_solution_snapshot_comparison.csv
+```
+
+This creates a timestamped directory under `visualization/paraview/`, for example:
+
+```text
+visualization/paraview/20260317T124705_snapshot_paraview/
+```
+
+Open `solution_snapshots.pvd` in ParaView. The `frames/` subdirectory contains
+one `.vts` structured-grid file per snapshot time, with point-data arrays named
+`deterministic` and `stochastic`.
+
 ## Git tracking policy
 
 - Keep source code, docs, CI config, and small deterministic tests in git.
-- Keep generated outputs in `data/output/`, `visualization/plots/`, and `tests/artifacts/`, which are ignored.
+- Keep generated outputs in `data/output/`, `visualization/plots/`,
+  `visualization/paraview/`, and `tests/artifacts/`, which are ignored.
 - Keep local or raw input data in the ignored paths under `data/input/`.
 - The repository includes a size guard that rejects staged files larger than `50 MB` by default.
 
