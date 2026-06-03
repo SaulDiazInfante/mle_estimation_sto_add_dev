@@ -25,6 +25,10 @@ equation, estimating model parameters, and visualizing estimator trajectories.
 - `make run-monte-carlo`: run the Monte Carlo study driver and write summary plus replicate CSV files under `data/output/`.
 - `make run-monte-carlo-paper`: run the paper-style study preset with the selected sweep over `dt`, basis size, and observation count.
 - `make run-snapshot-comparison`: reconstruct one stochastic path and its deterministic counterpart at selected times.
+- `make run-with-log`: same as `make run` but captures all output to a timestamped log file.
+- `make run-snapshot-comparison-with-log`: same as `make run-snapshot-comparison` with logging.
+- `make run-monte-carlo-with-log`: same as `make run-monte-carlo` with logging.
+- `make run-monte-carlo-paper-with-log`: same as `make run-monte-carlo-paper` with logging (recommended for paper studies).
 - `make plot`: plot the latest generated estimator CSV already present in `data/output/`.
 - `make plot-snapshot-comparison`: plot the latest reconstructed snapshot comparison CSV.
 - `make video-snapshot-comparison`: animate the latest reconstructed snapshot comparison CSV.
@@ -184,12 +188,8 @@ snapshots between `SPDE_SNAPSHOT_INITIAL_TIME` and
 
 A tracked shell environment file is available at
 [`data/input/snapshot_comparison.env`](data/input/snapshot_comparison.env).
-Edit the values there and run:
-
-```bash
-source data/input/snapshot_comparison.env
-make run-snapshot-comparison
-```
+`make run-snapshot-comparison` now automatically sources this file when it is present.
+You can still override any runtime setting manually before running the target.
 
 To export the same animation data for ParaView, run:
 
@@ -208,6 +208,78 @@ visualization/paraview/20260317T124705_snapshot_paraview/
 Open `solution_snapshots.pvd` in ParaView. The `frames/` subdirectory contains
 one `.vts` structured-grid file per snapshot time, with point-data arrays named
 `deterministic` and `stochastic`.
+
+### ParaView figure and animation recommendations
+
+For manuscript-quality figures, export a high-resolution PNG and use the
+`stochastic` surface preset when the goal is to highlight uncertainty patterns.
+Use a size such as `1920 1080` or larger for Elsevier/CNSNS-quality figures.
+
+For side-by-side comparison of deterministic and stochastic fields, use the
+`side-by-side-comparison` preset and export distinct outputs for each field.
+Add `--frame-label` when creating video output to overlay frame numbering like
+`25/50,000` in the top-right corner.
+
+Example commands:
+
+```bash
+pvpython visualization/scripts/paraview_solution_snapshot_visualization.py \
+  --preset stochastic-surface \
+  --output-image visualization/paraview/solution_snapshots_stochastic.png \
+  --output-video visualization/paraview/solution_snapshots_stochastic.mp4 \
+  --fps 8 \
+  --size 1920 1080 \
+  --frame-label \
+  --show-legend
+```
+
+```bash
+pvpython visualization/scripts/paraview_solution_snapshot_visualization.py \
+  --preset side-by-side-comparison \
+  --output-image visualization/paraview/solution_snapshots.png \
+  --output-video visualization/paraview/solution_snapshots.mp4 \
+  --frame-label
+```
+
+## Progress monitoring and logging
+
+### Estimated remaining time (ETA)
+
+All long-running simulations display a progress bar with an estimated remaining time. The ETA format automatically adapts to the remaining duration:
+
+```
+Simulation progress [########--] 80.00% (8000/10000) eta 2m 15s
+Simulation progress [##########] 100.00% (10000/10000) eta 0s
+```
+
+The ETA is calculated based on the current completion rate and updates continuously. It provides a useful estimate even though actual runtime may vary.
+
+### Comprehensive simulation logging
+
+For production runs (especially `make run-monte-carlo-paper`), use the logging variants to capture all output with timestamps and environment configuration:
+
+```bash
+# Run with logging enabled (output captured to timestamped log file)
+make run-snapshot-comparison-with-log
+make run-monte-carlo-with-log
+make run-monte-carlo-paper-with-log
+```
+
+Log files are written to `data/output/{TIMESTAMP}_{TARGET_NAME}.log` and include:
+
+- **Simulation metadata**: start/end times, elapsed wall time, target name
+- **Environment configuration**: all `SPDE_*` variables used by the run
+- **Fortran compiler version**
+- **Complete simulation output**: progress bars, console messages, any warnings or errors
+- **Summary**: exit code and final status (SUCCESS or FAILED)
+
+Example log file location:
+
+```
+data/output/20260603T143015_run_monte_carlo_paper.log
+```
+
+For details, see [docs/logging_and_eta.md](docs/logging_and_eta.md).
 
 ## Git tracking policy
 

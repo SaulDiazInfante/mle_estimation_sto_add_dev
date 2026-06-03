@@ -5,7 +5,11 @@ PYTHON ?= python3
 DOXYGEN ?= doxygen
 TIMESTAMP ?= $(shell date '+%Y%m%dT%H%M%S')
 LATEST_ESTIMATOR_PATTERN := *_estimator_trajectory.csv
-LATEST_SNAPSHOT_PATTERN := *_solution_snapshot_comparison.csv
+LATEST_SNAPSHOT_PATTERN := *_deterministic_path.csv
+# Find latest snapshot data (matches both old and new naming schemes)
+# Old: *_solution_snapshot_comparison.csv
+# New: *_deterministic_path.csv or *_stochastic_path.csv
+FIND_LATEST_SNAPSHOT_CMD = find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f \( -name '*_deterministic_path.csv' -o -name '*_stochastic_path.csv' -o -name '*_solution_snapshot_comparison.csv' \) | sort | tail -n 1
 PAPER_MC_REPLICATES ?= 1000
 PAPER_MC_BASIS_LEVELS ?= 20
 PAPER_MC_N_OBSERVATIONS ?= 100,500
@@ -27,11 +31,16 @@ SNAPSHOT_COMPARISON_TARGET := $(BIN_DIR)/snapshot_comparison
 DATA_OUTPUT_DIR := data/output
 PLOT_DIR := visualization/plots
 PARAVIEW_DIR := visualization/paraview
+PVPYTHON ?= pvpython
 PLOT_SCRIPT := visualization/scripts/plot_estimator_trajectory.py
 SNAPSHOT_PLOT_SCRIPT := visualization/scripts/plot_solution_snapshot_comparison.py
 SNAPSHOT_VIDEO_SCRIPT := visualization/scripts/animate_solution_snapshot_comparison.py
 SNAPSHOT_3D_SCRIPT := visualization/scripts/plot_3d_rugosity_comparison.py
 SNAPSHOT_PARAVIEW_SCRIPT := visualization/scripts/export_snapshot_paraview.py
+PARAVIEW_VIS_SCRIPT := visualization/scripts/paraview_solution_snapshot_visualization.py
+PARAVIEW_IMAGE ?= $(PARAVIEW_DIR)/solution_snapshots.png
+PARAVIEW_VIDEO ?= $(PARAVIEW_DIR)/solution_snapshots.mp4
+PARAVIEW_PRESET ?= side-by-side-comparison
 SNAPSHOT_PLOT_ARGS ?=
 SNAPSHOT_VIDEO_ARGS ?=
 SNAPSHOT_3D_ARGS ?=
@@ -73,7 +82,7 @@ APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
 APP_OBJ += $(OBJ_DIR)/snapshot_comparison.o
 OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-paraview docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison run-with-log run-snapshot-comparison-with-log run-monte-carlo-with-log run-monte-carlo-paper-with-log plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-paraview paraview-figure-video docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
@@ -94,9 +103,74 @@ run-monte-carlo-paper: build | $(DATA_OUTPUT_DIR)
 	$(MONTE_CARLO_TARGET)
 
 run-snapshot-comparison: build | $(DATA_OUTPUT_DIR)
+	@if [ -f data/input/snapshot_comparison.env ]; then . data/input/snapshot_comparison.env; fi; \
 	SPDE_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
 	$(if $(SNAPSHOT_FRAME_COUNT),SPDE_SNAPSHOT_USE_FRAME_COUNT=1 SPDE_SNAPSHOT_FRAME_COUNT='$(SNAPSHOT_FRAME_COUNT)') \
 	$(SNAPSHOT_COMPARISON_TARGET)
+
+# Logging wrapper targets
+# These targets execute the simulation targets with comprehensive logging
+run-with-log: build | $(DATA_OUTPUT_DIR)
+	@target_log="data/output/$(TIMESTAMP)_run.log"; \
+	echo "Logging simulation to $$target_log"; \
+	echo "============================================================" > "$$target_log"; \
+	echo "Simulation Log: run" >> "$$target_log"; \
+	echo "Target: run" >> "$$target_log"; \
+	echo "Start Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log"; \
+	echo "============================================================" >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	env | grep '^SPDE_' | sort >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	($(MAKE) run 2>&1 | tee -a "$$target_log") && \
+	echo "End Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log" && \
+	echo "Status: SUCCESS" >> "$$target_log" || \
+	echo "Status: FAILED" >> "$$target_log"
+
+run-snapshot-comparison-with-log: build | $(DATA_OUTPUT_DIR)
+	@target_log="data/output/$(TIMESTAMP)_run_snapshot_comparison.log"; \
+	echo "Logging simulation to $$target_log"; \
+	echo "============================================================" > "$$target_log"; \
+	echo "Simulation Log: run-snapshot-comparison" >> "$$target_log"; \
+	echo "Start Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log"; \
+	echo "============================================================" >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	env | grep '^SPDE_' | sort >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	($(MAKE) run-snapshot-comparison 2>&1 | tee -a "$$target_log") && \
+	echo "End Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log" && \
+	echo "Status: SUCCESS" >> "$$target_log" || \
+	echo "Status: FAILED" >> "$$target_log"
+
+run-monte-carlo-with-log: build | $(DATA_OUTPUT_DIR)
+	@target_log="data/output/$(TIMESTAMP)_run_monte_carlo.log"; \
+	echo "Logging simulation to $$target_log"; \
+	echo "============================================================" > "$$target_log"; \
+	echo "Simulation Log: run-monte-carlo" >> "$$target_log"; \
+	echo "Start Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log"; \
+	echo "============================================================" >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	env | grep '^SPDE_' | sort >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	($(MAKE) run-monte-carlo 2>&1 | tee -a "$$target_log") && \
+	echo "End Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log" && \
+	echo "Status: SUCCESS" >> "$$target_log" || \
+	echo "Status: FAILED" >> "$$target_log"
+
+run-monte-carlo-paper-with-log: build | $(DATA_OUTPUT_DIR)
+	@target_log="data/output/$(TIMESTAMP)_run_monte_carlo_paper.log"; \
+	echo "Logging simulation to $$target_log"; \
+	echo "============================================================" > "$$target_log"; \
+	echo "Simulation Log: run-monte-carlo-paper" >> "$$target_log"; \
+	echo "Start Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log"; \
+	echo "Compiler: $$(gfortran --version | head -n 1)" >> "$$target_log"; \
+	echo "============================================================" >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	env | grep '^SPDE_' | sort >> "$$target_log"; \
+	echo "" >> "$$target_log"; \
+	($(MAKE) run-monte-carlo-paper 2>&1 | tee -a "$$target_log") && \
+	echo "End Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log" && \
+	echo "Status: SUCCESS" >> "$$target_log" || \
+	echo "Status: FAILED" >> "$$target_log"
 
 plot: | $(PLOT_DIR)
 	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_ESTIMATOR_PATTERN)' | sort | tail -n 1)"; \
@@ -107,7 +181,7 @@ plot: | $(PLOT_DIR)
 	$(PYTHON) $(PLOT_SCRIPT) --input "$$latest_file"
 
 plot-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
-	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+	@latest_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \
 	if [ -z "$$latest_file" ]; then \
 		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
 		exit 1; \
@@ -115,7 +189,7 @@ plot-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
 	$(PYTHON) $(SNAPSHOT_PLOT_SCRIPT) --input "$$latest_file" $(SNAPSHOT_PLOT_ARGS)
 
 video-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
-	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+	@latest_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \
 	if [ -z "$$latest_file" ]; then \
 		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
 		exit 1; \
@@ -123,7 +197,7 @@ video-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
 	$(PYTHON) $(SNAPSHOT_VIDEO_SCRIPT) --input "$$latest_file" $(SNAPSHOT_VIDEO_ARGS)
 
 plot-3d-rugosity: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
-	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+	@latest_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \
 	if [ -z "$$latest_file" ]; then \
 		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
 		exit 1; \
@@ -134,13 +208,35 @@ export-snapshot-paraview: | $(DATA_OUTPUT_DIR) $(PARAVIEW_DIR)
 	@if [ -n "$(SNAPSHOT_PARAVIEW_INPUT)" ]; then \
 		snapshot_file="$(SNAPSHOT_PARAVIEW_INPUT)"; \
 	else \
-		snapshot_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_SNAPSHOT_PATTERN)' | sort | tail -n 1)"; \
+		snapshot_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \
 	fi; \
 	if [ -z "$$snapshot_file" ]; then \
 		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
 		exit 1; \
 	fi; \
 	$(PYTHON) $(SNAPSHOT_PARAVIEW_SCRIPT) --input "$$snapshot_file" --output-dir "$(SNAPSHOT_PARAVIEW_DIR)" $(SNAPSHOT_PARAVIEW_ARGS)
+
+paraview-figure-video: | $(PARAVIEW_DIR)
+	@latest_pvd="$$(find $(PARAVIEW_DIR) -maxdepth 2 -type f -name 'solution_snapshots.pvd' | sort | tail -n 1)"; \
+	if [ -z "$$latest_pvd" ]; then \
+		echo "Error: no solution_snapshots.pvd found in $(PARAVIEW_DIR). Run 'make export-snapshot-paraview' first." >&2; \
+		exit 1; \
+	fi; \
+	start_time=$$(date +%s); \
+	echo "Starting paraview-figure-video at $$(date '+%Y-%m-%d %H:%M:%S')"; \
+	$(PVPYTHON) $(PARAVIEW_VIS_SCRIPT) \
+		--input "$$latest_pvd" \
+		--preset $(PARAVIEW_PRESET) \
+		--output-image "$(PARAVIEW_IMAGE)" \
+		--output-video "$(PARAVIEW_VIDEO)" \
+		--frame-label \
+		--show-legend \
+		--size 1920 1080; \
+	ret=$$?; \
+	end_time=$$(date +%s); \
+	elapsed=$$((end_time - start_time)); \
+	echo "Finished paraview-figure-video at $$(date '+%Y-%m-%d %H:%M:%S') in $$elapsed seconds"; \
+	exit $$ret
 
 docs:
 	mkdir -p $(DOCS_DIR)
@@ -245,7 +341,8 @@ clean:
 		-name 'state_history.csv' -o -name '*_state_history.csv' -o \
 		-name 'monte_carlo_summary.csv' -o -name '*_monte_carlo_summary.csv' -o \
 		-name 'monte_carlo_replicates.csv' -o -name '*_monte_carlo_replicates.csv' -o \
-		-name 'solution_snapshot_comparison.csv' -o -name '*_solution_snapshot_comparison.csv' \) -delete
+		-name 'deterministic_path.csv' -o -name '*_deterministic_path.csv' -o \
+		-name 'stochastic_path.csv' -o -name '*_stochastic_path.csv' \) -delete
 	find $(PLOT_DIR) -maxdepth 1 -type f \
 		\( -name 'estimator_trajectory.png' -o -name '*_estimator_trajectory.png' -o \
 		-name 'solution_snapshot_comparison.png' -o -name '*_solution_snapshot_comparison.png' -o \

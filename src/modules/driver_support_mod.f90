@@ -17,8 +17,10 @@ module driver_support_mod
     integer, parameter, public :: default_monte_carlo_replicates = 1000
     character(len=*), parameter, public :: default_monte_carlo_summary_name = &
         "monte_carlo_summary.csv"
-    character(len=*), parameter, public :: default_snapshot_comparison_name = &
-        "solution_snapshot_comparison.csv"
+    character(len=*), parameter, public :: default_deterministic_path_name = &
+        "deterministic_path.csv"
+    character(len=*), parameter, public :: default_stochastic_path_name = &
+        "stochastic_path.csv"
     integer, parameter, public :: default_minimum_trajectory_observations = 10000
     character(len=*), parameter, public :: default_output_directory = "data/output"
     integer, parameter, public :: default_requested_trajectory_points = 500
@@ -159,12 +161,11 @@ contains
     end subroutine load_monte_carlo_configuration
 
     subroutine load_snapshot_configuration(&
-        time_step, n_observations, snapshot_times, snapshot_path &
+        time_step, n_observations, snapshot_times &
     )
         real(dp), intent(in) :: time_step
         integer, intent(in) :: n_observations
         real(dp), allocatable, intent(inout) :: snapshot_times(:)
-        character(len=:), allocatable, intent(inout) :: snapshot_path
 
         real(dp) :: initial_time
         real(dp) :: final_time
@@ -176,7 +177,6 @@ contains
 
         call set_default_real_vector(snapshot_times, [0.0_dp, 0.5_dp, 2.0_dp])
         call read_real_vector_env("SPDE_SNAPSHOT_TIMES", snapshot_times)
-        call read_string_env("SPDE_SNAPSHOT_COMPARISON_FILE", snapshot_path)
         use_frame_count = .false.
         call read_logical_env("SPDE_SNAPSHOT_USE_FRAME_COUNT", use_frame_count)
         has_frame_count = environment_variable_is_present(&

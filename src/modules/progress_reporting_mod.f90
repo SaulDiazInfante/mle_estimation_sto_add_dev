@@ -149,6 +149,7 @@ contains
         character(len=320) :: base_line
         character(len=640) :: progress_line
         character(len=progress_bar_width) :: progress_bar
+        character(len=32) :: eta_display
         real(real64) :: completion_fraction
         real(real64) :: current_time
         real(real64) :: elapsed_seconds
@@ -156,6 +157,7 @@ contains
         integer :: current_line_length
         integer :: filled_segments
         integer :: padding_length
+        integer :: eta_hours, eta_minutes, eta_secs, eta_total
 
         current_time = read_wall_time_seconds()
         elapsed_seconds = current_time - tracker%start_time
@@ -174,17 +176,30 @@ contains
             end if
         end if
 
+        ! Format ETA with hours, minutes, seconds
+        eta_total = int(eta_seconds)
+        eta_hours = eta_total / 3600
+        eta_minutes = (eta_total - eta_hours * 3600) / 60
+        eta_secs = eta_total - eta_hours * 3600 - eta_minutes * 60
+        
+        if (eta_hours > 0) then
+            write (eta_display, '(i0,"h ",i0,"m ",i0,"s")') eta_hours, eta_minutes, eta_secs
+        else if (eta_minutes > 0) then
+            write (eta_display, '(i0,"m ",i0,"s")') eta_minutes, eta_secs
+        else
+            write (eta_display, '(i0,"s")') eta_secs
+        end if
+
         filled_segments = int(completion_fraction * real(progress_bar_width, real64))
         filled_segments = max(0, min(progress_bar_width, filled_segments))
         progress_bar = repeat('#', filled_segments) // &
             repeat('-', progress_bar_width - filled_segments)
 
         write (base_line, '(a,1x,"[",a,"]",1x,f6.2,a,2x,'// &
-            '"(",i0,"/",i0,")",2x,"elapsed ",f7.2," s",2x,'// &
-            '"eta ",f7.2," s")') &
+            '"(",i0,"/",i0,")",2x,"eta ",a)') &
             trim(tracker%label), progress_bar, &
             100.0_real64 * completion_fraction, "%", completed_work, &
-            tracker%total_work, elapsed_seconds, eta_seconds
+            tracker%total_work, trim(adjustl(eta_display))
 
         progress_line = trim(base_line)
         if (allocated(tracker%detail)) then

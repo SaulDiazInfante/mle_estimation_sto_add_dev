@@ -3,11 +3,12 @@
 !! snapshots on the physical grid.
 !> @brief Writes a long-form CSV suitable for article figures and comparisons.
 program snapshot_comparison_driver
-    use csv_output_mod, only: write_solution_snapshot_comparison_csv
+    use csv_output_mod, only: write_solution_snapshot_path_csv
     use driver_support_mod, only: assign_default_output_path
     use driver_support_mod, only: build_output_timestamp
+    use driver_support_mod, only: default_deterministic_path_name
     use driver_support_mod, only: default_seed_value
-    use driver_support_mod, only: default_snapshot_comparison_name
+    use driver_support_mod, only: default_stochastic_path_name
     use driver_support_mod, only: load_core_runtime_configuration
     use driver_support_mod, only: load_snapshot_configuration
     use driver_support_mod, only: load_snapshot_plot_grid_configuration
@@ -28,8 +29,9 @@ program snapshot_comparison_driver
     real(dp), allocatable :: stochastic_fields(:, :, :)
     real(dp), allocatable :: x_coordinates(:)
     real(dp), allocatable :: y_coordinates(:)
+    character(len=:), allocatable :: deterministic_file
     character(len=:), allocatable :: output_timestamp
-    character(len=:), allocatable :: snapshot_file
+    character(len=:), allocatable :: stochastic_file
 
     seed_value = default_seed_value
     output_timestamp = build_output_timestamp()
@@ -38,13 +40,15 @@ program snapshot_comparison_driver
         grid, sde_parameters, seed_value, output_timestamp &
     )
     call load_snapshot_configuration(&
-        sde_parameters%time_step, sde_parameters%n_observations, snapshot_times, &
-        snapshot_file &
+        sde_parameters%time_step, sde_parameters%n_observations, snapshot_times &
     )
     call load_snapshot_plot_grid_configuration(grid, plot_nx, plot_ny)
     call normalize_output_timestamp(output_timestamp)
     call assign_default_output_path(&
-        output_timestamp, default_snapshot_comparison_name, snapshot_file &
+        output_timestamp, default_deterministic_path_name, deterministic_file &
+    )
+    call assign_default_output_path(&
+        output_timestamp, default_stochastic_path_name, stochastic_file &
     )
 
     call run_snapshot_comparison(&
@@ -52,10 +56,15 @@ program snapshot_comparison_driver
         y_coordinates, deterministic_fields, stochastic_fields, plot_nx, plot_ny, &
         report_progress=.true. &
     )
-    call write_solution_snapshot_comparison_csv(&
-        snapshot_file, grid, x_coordinates, y_coordinates, snapshot_times, &
-        deterministic_fields, stochastic_fields &
+    call write_solution_snapshot_path_csv(&
+        deterministic_file, grid, x_coordinates, y_coordinates, &
+        snapshot_times, deterministic_fields &
+    )
+    call write_solution_snapshot_path_csv(&
+        stochastic_file, grid, x_coordinates, y_coordinates, &
+        snapshot_times, stochastic_fields &
     )
 
-    write (*, '(2a)') "Wrote solution snapshot comparison to ", trim(snapshot_file)
+    write (*, '(2a)') "Wrote deterministic path to ", trim(deterministic_file)
+    write (*, '(2a)') "Wrote stochastic path to ", trim(stochastic_file)
 end program snapshot_comparison_driver

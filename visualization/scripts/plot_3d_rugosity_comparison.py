@@ -27,8 +27,9 @@ _SCRIPTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_SCRIPTS_DIR))
 from plot_solution_snapshot_comparison import (  # noqa: E402
     DEFAULT_PLOT_DIR,
+    _extract_timestamp_prefix,
     load_snapshot_data,
-    resolve_input_path,
+    resolve_input_paths,
 )
 
 
@@ -171,9 +172,9 @@ def main() -> None:
     if args.contour_levels < 2:
         raise ValueError("--contour-levels must be at least 2.")
 
-    input_path = resolve_input_path(args.input)
+    det_path, sto_path = resolve_input_paths(args.input)
 
-    times, x_coords, y_coords, fields, _ = load_snapshot_data(input_path)
+    times, x_coords, y_coords, fields, _ = load_snapshot_data(det_path, sto_path)
 
     t_idx = args.time_index % len(times)
     t = times[t_idx]
@@ -241,7 +242,8 @@ def main() -> None:
     if args.output is not None:
         output_path = Path(args.output)
     else:
-        output_path = DEFAULT_PLOT_DIR / f"{input_path.stem}_3d_rugosity.png"
+        prefix = _extract_timestamp_prefix(det_path)
+        output_path = DEFAULT_PLOT_DIR / f"{prefix}_3d_rugosity.png"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=args.dpi, bbox_inches="tight")

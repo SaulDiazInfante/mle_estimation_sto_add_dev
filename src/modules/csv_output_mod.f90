@@ -12,7 +12,7 @@ module csv_output_mod
     public :: write_estimator_history_csv
     public :: write_monte_carlo_replicates_csv
     public :: write_monte_carlo_summary_csv
-    public :: write_solution_snapshot_comparison_csv
+    public :: write_solution_snapshot_path_csv
     public :: write_state_history_csv
 
 contains
@@ -189,66 +189,56 @@ contains
         close (unit_id)
     end subroutine write_monte_carlo_summary_csv
 
-    !> Writes reconstructed deterministic and stochastic solution snapshots.
-    subroutine write_solution_snapshot_comparison_csv(&
+    !> Writes a single solution path (deterministic or stochastic) to a CSV.
+    subroutine write_solution_snapshot_path_csv(&
         file_name, grid, x_coordinates, y_coordinates, snapshot_times, &
-        deterministic_fields, stochastic_fields &
+        fields &
     )
         character(len=*), intent(in) :: file_name
         type(spatial_grid_t), intent(in) :: grid
         real(dp), intent(in) :: x_coordinates(:)
         real(dp), intent(in) :: y_coordinates(:)
         real(dp), intent(in) :: snapshot_times(:)
-        real(dp), intent(in) :: deterministic_fields(:, :, :)
-        real(dp), intent(in) :: stochastic_fields(:, :, :)
+        real(dp), intent(in) :: fields(:, :, :)
 
         integer :: ix
         integer :: iy
         integer :: snapshot_index
         integer :: unit_id
 
-        if (size(deterministic_fields, 1) /= size(x_coordinates) .or. &
-            size(stochastic_fields, 1) /= size(x_coordinates)) then
+        if (size(fields, 1) /= size(x_coordinates)) then
             write (*, '(a)') "Snapshot x-dimension must match x_coordinates."
             error stop
         end if
 
-        if (size(deterministic_fields, 2) /= size(y_coordinates) .or. &
-            size(stochastic_fields, 2) /= size(y_coordinates)) then
+        if (size(fields, 2) /= size(y_coordinates)) then
             write (*, '(a)') "Snapshot y-dimension must match y_coordinates."
             error stop
         end if
 
-        if (size(deterministic_fields, 3) /= size(snapshot_times) .or. &
-            size(stochastic_fields, 3) /= size(snapshot_times)) then
+        if (size(fields, 3) /= size(snapshot_times)) then
             write (*, '(a)') "Snapshot count must match snapshot_times."
             error stop
         end if
 
         open (newunit=unit_id, file=file_name, status="replace", action="write")
         call write_snapshot_metadata(unit_id, grid)
-        write (unit_id, '(a)') &
-            "solution_kind,time,x_index,y_index,x,y,value"
+        write (unit_id, '(a)') "time,x_index,y_index,x,y,value"
 
         do snapshot_index = 1, size(snapshot_times)
             do iy = 1, size(y_coordinates)
                 do ix = 1, size(x_coordinates)
                     call write_snapshot_row(&
-                        unit_id, "deterministic", snapshot_times(snapshot_index), &
+                        unit_id, snapshot_times(snapshot_index), &
                         ix, iy, x_coordinates(ix), y_coordinates(iy), &
-                        deterministic_fields(ix, iy, snapshot_index) &
-                    )
-                    call write_snapshot_row(&
-                        unit_id, "stochastic", snapshot_times(snapshot_index), &
-                        ix, iy, x_coordinates(ix), y_coordinates(iy), &
-                        stochastic_fields(ix, iy, snapshot_index) &
+                        fields(ix, iy, snapshot_index) &
                     )
                 end do
             end do
         end do
 
         close (unit_id)
-    end subroutine write_solution_snapshot_comparison_csv
+    end subroutine write_solution_snapshot_path_csv
 
     subroutine write_snapshot_metadata(unit_id, grid)
         integer, intent(in) :: unit_id
@@ -261,11 +251,10 @@ contains
     end subroutine write_snapshot_metadata
 
     subroutine write_snapshot_row(&
-        unit_id, solution_kind, time_value, x_index, y_index, x_value, y_value, &
+        unit_id, time_value, x_index, y_index, x_value, y_value, &
         field_value &
     )
         integer, intent(in) :: unit_id
-        character(len=*), intent(in) :: solution_kind
         real(dp), intent(in) :: time_value
         integer, intent(in) :: x_index
         integer, intent(in) :: y_index
@@ -273,10 +262,9 @@ contains
         real(dp), intent(in) :: y_value
         real(dp), intent(in) :: field_value
 
-        write (unit_id, '(a,",",es26.17e3,",",i0,",",i0,",",es26.17e3,'// &
+        write (unit_id, '(es26.17e3,",",i0,",",i0,",",es26.17e3,'// &
             '",",es26.17e3,",",es26.17e3)') &
-            trim(solution_kind), time_value, x_index, y_index, x_value, &
-            y_value, field_value
+            time_value, x_index, y_index, x_value, y_value, field_value
     end subroutine write_snapshot_row
 
 end module csv_output_mod

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import itertools
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -13,7 +14,8 @@ import numpy as np
 DEFAULT_INPUT_DIR = Path("data/output")
 DEFAULT_PARAVIEW_DIR = Path("visualization/paraview")
 DEFAULT_COLLECTION_NAME = "solution_snapshots"
-SNAPSHOT_SUFFIX = "_solution_snapshot_comparison.csv"
+DETERMINISTIC_SUFFIX = "_deterministic_path.csv"
+STOCHASTIC_SUFFIX = "_stochastic_path.csv"
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,22 +55,43 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_output_dir(argument: str | None, input_path: Path) -> Path:
-    if argument is not None:
-        return Path(argument)
+def _derive_companion_path(given: Path) -> tuple[Path, Path]:
+    """Return (deterministic_path, stochastic_path) given either file."""
+    name = given.name
+    if name.endswith(STOCHASTIC_SUFFIX.lstrip("_")):
+        det = given.parent / name.replace("stochastic_path.csv", "deterministic_path.csv")
+        return det, given
+    if name.endswith(DETERMINISTIC_SUFFIX.lstrip("_")):
+        sto = given.parent / name.replace("deterministic_path.csv", "stochastic_path.csv")
+        return given, sto
+    msg = (
+        f"Input file must end with '{DETERMINISTIC_SUFFIX}' or "
+        f"'{STOCHASTIC_SUFFIX}': {given}"
+    )
+    raise ValueError(msg)
 
-    stem = input_path.stem
-    suffix = "_solution_snapshot_comparison"
+
+def _extract_timestamp_prefix(det_path: Path) -> str:
+    stem = det_path.stem
+    suffix = "_deterministic_path"
     if stem.endswith(suffix):
-        stem = stem[: -len(suffix)]
-    return DEFAULT_PARAVIEW_DIR / f"{stem}_paraview"
+        return stem[: -len(suffix)]
+    return stem
 
 
-def resolve_input_path(argument: str | None) -> Path:
+def resolve_output_dir(argument: str | None, det_path: Path) -> Path:
     if argument is not None:
         return Path(argument)
 
-    candidates = sorted(DEFAULT_INPUT_DIR.glob(f"*{SNAPSHOT_SUFFIX}"))
+    prefix = _extract_timestamp_prefix(det_path)
+    return DEFAULT_PARAVIEW_DIR / f"{prefix}_paraview"
+
+
+def resolve_input_paths(argument: str | None) -> tuple[Path, Path]:
+    if argument is not None:
+        return _derive_companion_path(Path(argument))
+
+    candidates = sorted(DEFAULT_INPUT_DIR.glob(f"*{DETERMINISTIC_SUFFIX}"))
     if not candidates:
         msg = (
             "No generated snapshot data was found in "
@@ -76,81 +99,57 @@ def resolve_input_path(argument: str | None) -> Path:
         )
         raise FileNotFoundError(msg)
 
-    print(f"Using latest snapshot comparison from {candidates[-1]}")
-    return candidates[-1]
+    det_path = candidates[-1]
+    print(f"Using latest snapshot pair from {det_path}")
+    return _derive_companion_path(det_path)
 
 
-def load_snapshot_data(
-    path: Path,
-) -> tuple[
-    list[float],
-    np.ndarray,
-    np.ndarray,
-    dict[tuple[str, float], np.ndarray],
-]:
-    expected_header = [
-        "solution_kind",
-        "time",
-        "x_index",
-        "y_index",
-        "x",
-        "y",
-        "value",
-    ]
-    rows: list[dict[str, str]] = []
+def _stream_single_path(path: Path):
+    """Yield (time, x_coordinates, y_coordinates, field) per snapshot from one file."""
+    expected_header = ["time", "x_index", "y_index", "x", "y", "value"]
+
+    def non_comment_lines(handle):
+        for raw_line in handle:
+            if not raw_line.strip().startswith("#"):
+                yield raw_line
 
     with path.open("r", encoding="utf-8") as handle:
-        data_lines: list[str] = []
-        for raw_line in handle:
-            if raw_line.strip().startswith("#"):
-                continue
-            data_lines.append(raw_line)
-
-        reader = csv.DictReader(data_lines)
-        if reader.fieldnames != expected_header:
+        reader = csv.DictReader(non_comment_lines(handle))
+        if list(reader.fieldnames) != expected_header:
             msg = f"Expected CSV header {expected_header}, got {reader.fieldnames}"
             raise ValueError(msg)
-        rows = list(reader)
 
-    if not rows:
-        msg = f"No snapshot rows found in {path}"
-        raise ValueError(msg)
+        for time_key, group_iter in itertools.groupby(
+            reader, key=lambda r: r["time"]
+        ):
+            time_value = float(time_key)
+            group = list(group_iter)
 
-    times = sorted({float(row["time"]) for row in rows})
-    kinds = sorted({row["solution_kind"] for row in rows})
-    if kinds != ["deterministic", "stochastic"]:
-        msg = f"Expected solution kinds ['deterministic', 'stochastic'], got {kinds}"
-        raise ValueError(msg)
+            nx = max(int(r["x_index"]) for r in group)
+            ny = max(int(r["y_index"]) for r in group)
+            x_coordinates = np.full(nx, np.nan, dtype=float)
+            y_coordinates = np.full(ny, np.nan, dtype=float)
+            field = np.full((ny, nx), np.nan, dtype=float)
 
-    nx = max(int(row["x_index"]) for row in rows)
-    ny = max(int(row["y_index"]) for row in rows)
-    x_coordinates = np.full(nx, np.nan, dtype=float)
-    y_coordinates = np.full(ny, np.nan, dtype=float)
+            for row in group:
+                xi = int(row["x_index"]) - 1
+                yi = int(row["y_index"]) - 1
+                x_coordinates[xi] = float(row["x"])
+                y_coordinates[yi] = float(row["y"])
+                field[yi, xi] = float(row["value"])
 
-    fields: dict[tuple[str, float], np.ndarray] = {}
-    for kind in kinds:
-        for time_value in times:
-            fields[(kind, time_value)] = np.full((ny, nx), np.nan, dtype=float)
+            yield time_value, x_coordinates, y_coordinates, field
 
-    for row in rows:
-        kind = row["solution_kind"]
-        time_value = float(row["time"])
-        x_index = int(row["x_index"]) - 1
-        y_index = int(row["y_index"]) - 1
-        x_coordinates[x_index] = float(row["x"])
-        y_coordinates[y_index] = float(row["y"])
-        fields[(kind, time_value)][y_index, x_index] = float(row["value"])
 
-    if np.isnan(x_coordinates).any() or np.isnan(y_coordinates).any():
-        msg = f"Incomplete coordinate coverage in {path}"
-        raise ValueError(msg)
-
-    for key, field in fields.items():
-        if np.isnan(field).any():
-            msg = f"Incomplete grid coverage for {key} in {path}"
-            raise ValueError(msg)
-
-    return times, x_coordinates, y_coordinates, fields
+def stream_snapshot_frames(det_path: Path, sto_path: Path):
+    """Yield (time, x_coordinates, y_coordinates, det_field, sto_field)
+    by reading both single-kind CSVs in lockstep."""
+    for det_frame, sto_frame in zip(
+        _stream_single_path(det_path), _stream_single_path(sto_path)
+    ):
+        time_value, x_coords, y_coords, det_field = det_frame
+        _, _, _, sto_field = sto_frame
+        yield time_value, x_coords, y_coords, det_field, sto_field
 
 
 def write_data_array(
@@ -188,15 +187,14 @@ def write_vts_frame(
     ny = len(y_coordinates)
     x_grid, y_grid = np.meshgrid(x_coordinates, y_coordinates)
 
+    # The structured grid always has a single z-layer (extent 0 0).
+    # When warp_scale != 0, z-coordinates carry the field values so the
+    # surface has depth in ParaView without changing the grid topology.
+    extent = f"0 {nx - 1} 0 {ny - 1} 0 0"
     if warp_scale != 0.0:
-        # Lift the surface into 3-D using the stochastic field as z.
-        # This avoids ParaView's 2-D interaction lock on flat single-layer grids.
         z_grid = warp_scale * stochastic_field
-        nz = len(np.unique(z_grid))
-        extent = f"0 {nx - 1} 0 {ny - 1} 0 {max(nz - 1, 1)}"
     else:
         z_grid = np.zeros_like(x_grid)
-        extent = f"0 {nx - 1} 0 {ny - 1} 0 0"
     points = np.stack([x_grid, y_grid, z_grid], axis=-1)
 
     with frame_path.open("w", encoding="utf-8") as handle:
@@ -243,26 +241,33 @@ def write_pvd_collection(
 
 def main() -> None:
     args = parse_args()
-    input_path = resolve_input_path(args.input)
-    output_dir = resolve_output_dir(args.output_dir, input_path)
+    det_path, sto_path = resolve_input_paths(args.input)
+    output_dir = resolve_output_dir(args.output_dir, det_path)
     frame_dir = output_dir / "frames"
-
-    times, x_coordinates, y_coordinates, fields = load_snapshot_data(input_path)
-
     frame_dir.mkdir(parents=True, exist_ok=True)
-    frame_paths: list[Path] = []
 
-    for frame_index, time_value in enumerate(times):
-        frame_path = frame_dir / f"solution_{frame_index:04d}.vts"
+    frame_paths: list[Path] = []
+    times: list[float] = []
+    report_every = 1000  # print progress every N frames
+
+    print(f"Streaming frames from {det_path} and {sto_path} ...")
+    for frame_index, (time_value, x_coords, y_coords, det_field, sto_field) in enumerate(
+        stream_snapshot_frames(det_path, sto_path)
+    ):
+        frame_path = frame_dir / f"solution_{frame_index:05d}.vts"
         write_vts_frame(
             frame_path,
-            x_coordinates,
-            y_coordinates,
-            fields[("deterministic", time_value)],
-            fields[("stochastic", time_value)],
+            x_coords,
+            y_coords,
+            det_field,
+            sto_field,
             warp_scale=args.warp_scale,
         )
         frame_paths.append(frame_path)
+        times.append(time_value)
+
+        if (frame_index + 1) % report_every == 0:
+            print(f"  {frame_index + 1} frames written ...", flush=True)
 
     collection_path = output_dir / f"{args.collection_name}.pvd"
     write_pvd_collection(collection_path, frame_paths, times)

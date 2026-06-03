@@ -10,6 +10,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
 from plot_solution_snapshot_comparison import DEFAULT_PLOT_DIR
+from plot_solution_snapshot_comparison import _extract_timestamp_prefix
 from plot_solution_snapshot_comparison import add_velocity_quiver
 from plot_solution_snapshot_comparison import centers_to_edges
 from plot_solution_snapshot_comparison import choose_color_scale
@@ -18,7 +19,7 @@ from plot_solution_snapshot_comparison import format_time_label
 from plot_solution_snapshot_comparison import load_snapshot_data
 from plot_solution_snapshot_comparison import read_float_setting
 from plot_solution_snapshot_comparison import read_int_setting
-from plot_solution_snapshot_comparison import resolve_input_path
+from plot_solution_snapshot_comparison import resolve_input_paths
 
 
 def parse_args() -> argparse.Namespace:
@@ -88,12 +89,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_output_path(argument: str | None, input_path: Path, writer_name: str) -> Path:
+def resolve_output_path(argument: str | None, det_path: Path, writer_name: str) -> Path:
     if argument is not None:
         return Path(argument)
 
+    prefix = _extract_timestamp_prefix(det_path)
     extension = ".mp4" if writer_name == "ffmpeg" else ".gif"
-    return DEFAULT_PLOT_DIR / f"{input_path.stem}{extension}"
+    return DEFAULT_PLOT_DIR / f"{prefix}_solution_snapshot_comparison{extension}"
 
 
 def choose_writer_name(requested_writer: str, output_argument: str | None) -> str:
@@ -135,15 +137,15 @@ def build_writer(writer_name: str, fps: int) -> animation.AbstractMovieWriter:
 
 def main() -> None:
     args = parse_args()
-    input_path = resolve_input_path(args.input)
+    det_path, sto_path = resolve_input_paths(args.input)
     writer_name = choose_writer_name(args.writer, args.output)
-    output_path = resolve_output_path(args.output, input_path, writer_name)
+    output_path = resolve_output_path(args.output, det_path, writer_name)
 
     if writer_name == "pillow" and output_path.suffix.lower() != ".gif":
         msg = "The pillow writer requires a .gif output path."
         raise ValueError(msg)
 
-    times, x_coordinates, y_coordinates, fields, metadata = load_snapshot_data(input_path)
+    times, x_coordinates, y_coordinates, fields, metadata = load_snapshot_data(det_path, sto_path)
     x_edges = centers_to_edges(x_coordinates)
     y_edges = centers_to_edges(y_coordinates)
     vmin, vmax, cmap = choose_color_scale(fields)

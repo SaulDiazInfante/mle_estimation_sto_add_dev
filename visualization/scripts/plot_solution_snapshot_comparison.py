@@ -13,7 +13,8 @@ import numpy as np
 
 DEFAULT_INPUT_DIR = Path("data/output")
 DEFAULT_PLOT_DIR = Path("visualization/plots")
-SNAPSHOT_SUFFIX = "_solution_snapshot_comparison.csv"
+DETERMINISTIC_SUFFIX = "_deterministic_path.csv"
+STOCHASTIC_SUFFIX = "_stochastic_path.csv"
 
 
 def parse_args() -> argparse.Namespace:
@@ -65,11 +66,37 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_input_path(argument: str | None) -> Path:
-    if argument is not None:
-        return Path(argument)
+def _derive_companion_path(given: Path) -> tuple[Path, Path]:
+    """Return (deterministic_path, stochastic_path) given either file."""
+    name = given.name
+    if name.endswith(STOCHASTIC_SUFFIX.lstrip("_")):
+        det = given.parent / name.replace("stochastic_path.csv", "deterministic_path.csv")
+        return det, given
+    if name.endswith(DETERMINISTIC_SUFFIX.lstrip("_")):
+        sto = given.parent / name.replace("deterministic_path.csv", "stochastic_path.csv")
+        return given, sto
+    msg = (
+        f"Input file must end with '{DETERMINISTIC_SUFFIX}' or "
+        f"'{STOCHASTIC_SUFFIX}': {given}"
+    )
+    raise ValueError(msg)
 
-    candidates = sorted(DEFAULT_INPUT_DIR.glob(f"*{SNAPSHOT_SUFFIX}"))
+
+def _extract_timestamp_prefix(det_path: Path) -> str:
+    """Extract the timestamp prefix from a deterministic path filename."""
+    stem = det_path.stem
+    suffix = "_deterministic_path"
+    if stem.endswith(suffix):
+        return stem[: -len(suffix)]
+    return stem
+
+
+def resolve_input_paths(argument: str | None) -> tuple[Path, Path]:
+    """Return (deterministic_path, stochastic_path) from a CLI argument."""
+    if argument is not None:
+        return _derive_companion_path(Path(argument))
+
+    candidates = sorted(DEFAULT_INPUT_DIR.glob(f"*{DETERMINISTIC_SUFFIX}"))
     if not candidates:
         msg = (
             "No generated snapshot data was found in "
@@ -77,36 +104,24 @@ def resolve_input_path(argument: str | None) -> Path:
         )
         raise FileNotFoundError(msg)
 
-    print(f"Using latest snapshot comparison from {candidates[-1]}")
-    return candidates[-1]
+    det_path = candidates[-1]
+    print(f"Using latest snapshot pair from {det_path}")
+    return _derive_companion_path(det_path)
 
 
-def resolve_output_path(argument: str | None, input_path: Path) -> Path:
+def resolve_output_path(argument: str | None, det_path: Path) -> Path:
     if argument is not None:
         return Path(argument)
 
-    output_name = f"{input_path.stem}.png" if input_path.suffix == ".csv" else f"{input_path.name}.png"
-    return DEFAULT_PLOT_DIR / output_name
+    prefix = _extract_timestamp_prefix(det_path)
+    return DEFAULT_PLOT_DIR / f"{prefix}_solution_snapshot_comparison.png"
 
 
-def load_snapshot_data(
+def _load_single_path_csv(
     path: Path,
-) -> tuple[
-    list[float],
-    np.ndarray,
-    np.ndarray,
-    dict[tuple[str, float], np.ndarray],
-    dict[str, str],
-]:
-    expected_header = [
-        "solution_kind",
-        "time",
-        "x_index",
-        "y_index",
-        "x",
-        "y",
-        "value",
-    ]
+) -> tuple[list[float], np.ndarray, np.ndarray, dict[float, np.ndarray], dict[str, str]]:
+    """Read a single-kind snapshot CSV (no solution_kind column)."""
+    expected_header = ["time", "x_index", "y_index", "x", "y", "value"]
     metadata: dict[str, str] = {}
     rows: list[dict[str, str]] = []
 
@@ -132,29 +147,22 @@ def load_snapshot_data(
         raise ValueError(msg)
 
     times = sorted({float(row["time"]) for row in rows})
-    kinds = sorted({row["solution_kind"] for row in rows})
-    if kinds != ["deterministic", "stochastic"]:
-        msg = f"Expected solution kinds ['deterministic', 'stochastic'], got {kinds}"
-        raise ValueError(msg)
-
     nx = max(int(row["x_index"]) for row in rows)
     ny = max(int(row["y_index"]) for row in rows)
     x_coordinates = np.full(nx, np.nan, dtype=float)
     y_coordinates = np.full(ny, np.nan, dtype=float)
 
-    fields: dict[tuple[str, float], np.ndarray] = {}
-    for kind in kinds:
-        for time_value in times:
-            fields[(kind, time_value)] = np.full((ny, nx), np.nan, dtype=float)
+    fields: dict[float, np.ndarray] = {}
+    for time_value in times:
+        fields[time_value] = np.full((ny, nx), np.nan, dtype=float)
 
     for row in rows:
-        kind = row["solution_kind"]
         time_value = float(row["time"])
         x_index = int(row["x_index"]) - 1
         y_index = int(row["y_index"]) - 1
         x_coordinates[x_index] = float(row["x"])
         y_coordinates[y_index] = float(row["y"])
-        fields[(kind, time_value)][y_index, x_index] = float(row["value"])
+        fields[time_value][y_index, x_index] = float(row["value"])
 
     if np.isnan(x_coordinates).any() or np.isnan(y_coordinates).any():
         msg = f"Incomplete coordinate coverage in {path}"
@@ -162,10 +170,39 @@ def load_snapshot_data(
 
     for key, field in fields.items():
         if np.isnan(field).any():
-            msg = f"Incomplete grid coverage for {key} in {path}"
+            msg = f"Incomplete grid coverage for time={key} in {path}"
             raise ValueError(msg)
 
     return times, x_coordinates, y_coordinates, fields, metadata
+
+
+def load_snapshot_data(
+    det_path: Path,
+    sto_path: Path,
+) -> tuple[
+    list[float],
+    np.ndarray,
+    np.ndarray,
+    dict[tuple[str, float], np.ndarray],
+    dict[str, str],
+]:
+    """Load deterministic and stochastic path CSVs into a combined dict."""
+    det_times, x_det, y_det, det_fields, metadata = _load_single_path_csv(det_path)
+    sto_times, x_sto, y_sto, sto_fields, _ = _load_single_path_csv(sto_path)
+
+    if det_times != sto_times:
+        msg = "Deterministic and stochastic files have mismatched time sets."
+        raise ValueError(msg)
+    if not np.array_equal(x_det, x_sto) or not np.array_equal(y_det, y_sto):
+        msg = "Deterministic and stochastic files have mismatched coordinates."
+        raise ValueError(msg)
+
+    fields: dict[tuple[str, float], np.ndarray] = {}
+    for t in det_times:
+        fields[("deterministic", t)] = det_fields[t]
+        fields[("stochastic", t)] = sto_fields[t]
+
+    return det_times, x_det, y_det, fields, metadata
 
 
 def centers_to_edges(centers: np.ndarray) -> np.ndarray:
@@ -286,10 +323,10 @@ def add_velocity_quiver(
 
 def main() -> None:
     args = parse_args()
-    input_path = resolve_input_path(args.input)
-    output_path = resolve_output_path(args.output, input_path)
+    det_path, sto_path = resolve_input_paths(args.input)
+    output_path = resolve_output_path(args.output, det_path)
 
-    times, x_coordinates, y_coordinates, fields, metadata = load_snapshot_data(input_path)
+    times, x_coordinates, y_coordinates, fields, metadata = load_snapshot_data(det_path, sto_path)
     display_times = [times[0], times[-1]]
     display_labels = ["First", "Last"]
     display_fields = {
