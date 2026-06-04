@@ -215,6 +215,32 @@ For manuscript-quality figures, export a high-resolution PNG and use the
 `stochastic` surface preset when the goal is to highlight uncertainty patterns.
 Use a size such as `1920 1080` or larger for Elsevier/CNSNS-quality figures.
 
+For first/last deterministic/stochastic 3-D panels with professional journal
+standards (Elsevier/SIAM style), run:
+
+```bash
+make export-snapshot-manuscript-panels \
+  SNAPSHOT_MANUSCRIPT_INPUT=data/output/20260604Tvideo_deterministic_path.csv
+```
+
+This writes both signed-value and nonnegative-value options under
+`visualization/plots/<timestamp>_manuscript_panels/`. Key features include:
+
+- **Automated Labeling**: Multi-panel figures include bold **(a)-(d)** IDs.
+- **Shared Global Scaling**: Shared Z-axis and color scales across all four
+  panels (initial/final, deterministic/stochastic) to ensure magnitude
+  comparability.
+- **Journal Layout**: Figures are optimized for standard column widths
+  (3.3 inches for single panels, 6.9 inches for 2x2 combined figures).
+- **Professional Typography**: Standard fonts (Arial/Helvetica) with legible
+  sizes (7.5pt-11pt) and LaTeX-style mathematical labels.
+- **Perceptual Colormaps**: Uses `viridis` for nonnegative concentration fields
+  and `coolwarm` for signed fields.
+
+PNG is the default for drafting; for final submission-ready TIFF output at
+500 DPI, use:
+`SNAPSHOT_MANUSCRIPT_ARGS="--extension tif --dpi 500"`
+
 For side-by-side comparison of deterministic and stochastic fields, use the
 `side-by-side-comparison` preset and export distinct outputs for each field.
 Add `--frame-label` when creating video output to overlay frame numbering like

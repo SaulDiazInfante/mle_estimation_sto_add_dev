@@ -36,6 +36,7 @@ PLOT_SCRIPT := visualization/scripts/plot_estimator_trajectory.py
 SNAPSHOT_PLOT_SCRIPT := visualization/scripts/plot_solution_snapshot_comparison.py
 SNAPSHOT_VIDEO_SCRIPT := visualization/scripts/animate_solution_snapshot_comparison.py
 SNAPSHOT_3D_SCRIPT := visualization/scripts/plot_3d_rugosity_comparison.py
+SNAPSHOT_MANUSCRIPT_SCRIPT := visualization/scripts/export_snapshot_manuscript_panels.py
 SNAPSHOT_PARAVIEW_SCRIPT := visualization/scripts/export_snapshot_paraview.py
 PARAVIEW_VIS_SCRIPT := visualization/scripts/paraview_solution_snapshot_visualization.py
 PARAVIEW_IMAGE ?= $(PARAVIEW_DIR)/solution_snapshots.png
@@ -44,7 +45,9 @@ PARAVIEW_PRESET ?= side-by-side-comparison
 SNAPSHOT_PLOT_ARGS ?=
 SNAPSHOT_VIDEO_ARGS ?=
 SNAPSHOT_3D_ARGS ?=
+SNAPSHOT_MANUSCRIPT_ARGS ?=
 SNAPSHOT_PARAVIEW_ARGS ?=
+SNAPSHOT_MANUSCRIPT_INPUT ?=
 SNAPSHOT_PARAVIEW_INPUT ?=
 SNAPSHOT_PARAVIEW_DIR ?= $(PARAVIEW_DIR)/$(TIMESTAMP)_snapshot_paraview
 SNAPSHOT_FRAME_COUNT ?=
@@ -82,7 +85,7 @@ APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
 APP_OBJ += $(OBJ_DIR)/snapshot_comparison.o
 OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison run-with-log run-snapshot-comparison-with-log run-monte-carlo-with-log run-monte-carlo-paper-with-log plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-paraview paraview-figure-video docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison run-with-log run-snapshot-comparison-with-log run-monte-carlo-with-log run-monte-carlo-paper-with-log plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-manuscript-panels export-snapshot-paraview paraview-figure-video docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
 
 all: build
 
@@ -203,6 +206,18 @@ plot-3d-rugosity: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
 		exit 1; \
 	fi; \
 	$(PYTHON) $(SNAPSHOT_3D_SCRIPT) --input "$$latest_file" $(SNAPSHOT_3D_ARGS)
+
+export-snapshot-manuscript-panels: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@if [ -n "$(SNAPSHOT_MANUSCRIPT_INPUT)" ]; then \
+		snapshot_file="$(SNAPSHOT_MANUSCRIPT_INPUT)"; \
+	else \
+		snapshot_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \
+	fi; \
+	if [ -z "$$snapshot_file" ]; then \
+		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
+		exit 1; \
+	fi; \
+	$(PYTHON) $(SNAPSHOT_MANUSCRIPT_SCRIPT) --input "$$snapshot_file" $(SNAPSHOT_MANUSCRIPT_ARGS)
 
 export-snapshot-paraview: | $(DATA_OUTPUT_DIR) $(PARAVIEW_DIR)
 	@if [ -n "$(SNAPSHOT_PARAVIEW_INPUT)" ]; then \
@@ -343,6 +358,7 @@ clean:
 		-name 'monte_carlo_replicates.csv' -o -name '*_monte_carlo_replicates.csv' -o \
 		-name 'deterministic_path.csv' -o -name '*_deterministic_path.csv' -o \
 		-name 'stochastic_path.csv' -o -name '*_stochastic_path.csv' \) -delete
+	find $(PLOT_DIR) -mindepth 1 -maxdepth 1 -type d -name '*_manuscript_panels' -exec rm -rf {} +
 	find $(PLOT_DIR) -maxdepth 1 -type f \
 		\( -name 'estimator_trajectory.png' -o -name '*_estimator_trajectory.png' -o \
 		-name 'solution_snapshot_comparison.png' -o -name '*_solution_snapshot_comparison.png' -o \
