@@ -220,6 +220,21 @@ For side-by-side comparison of deterministic and stochastic fields, use the
 Add `--frame-label` when creating video output to overlay frame numbering like
 `25/50,000` in the top-right corner.
 
+To export static 3-D initial/final comparisons, run:
+
+```bash
+make paraview-initial-final-images PVPYTHON=/opt/paraview/bin/pvpython
+```
+
+This writes `solution_initial_final_deterministic.png` and
+`solution_initial_final_stochastic.png` under `visualization/paraview/`.
+Each image contains the initial and final simulation states with a warped
+surface and edge overlay for a clearer 3-D reading.
+
+If the stochastic panel looks over-warped, reduce the vertical scale with
+`--stochastic-warp-scale 0.8` or use `--warp-scale 1.0` to keep the surface
+visible without producing a wall-like distortion.
+
 Example commands:
 
 ```bash
@@ -239,6 +254,16 @@ pvpython visualization/scripts/paraview_solution_snapshot_visualization.py \
   --output-image visualization/paraview/solution_snapshots.png \
   --output-video visualization/paraview/solution_snapshots.mp4 \
   --frame-label
+```
+
+You can also use the new Plotly exporter for an interactive HTML version of the
+same comparison. It uses shared color and value-axis ranges across all panels,
+a golden 3-D camera/aspect button, and a tracker marker at the point of largest
+final stochastic-minus-deterministic difference:
+
+```bash
+python visualization/scripts/plotly_solution_snapshot_comparison.py \
+  --output visualization/plots/solution_snapshot_comparison_plotly.html
 ```
 
 ## Progress monitoring and logging

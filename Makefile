@@ -34,6 +34,7 @@ PARAVIEW_DIR := visualization/paraview
 PVPYTHON ?= pvpython
 PLOT_SCRIPT := visualization/scripts/plot_estimator_trajectory.py
 SNAPSHOT_PLOT_SCRIPT := visualization/scripts/plot_solution_snapshot_comparison.py
+SNAPSHOT_PLOTLY_SCRIPT := visualization/scripts/plotly_solution_snapshot_comparison.py
 SNAPSHOT_VIDEO_SCRIPT := visualization/scripts/animate_solution_snapshot_comparison.py
 SNAPSHOT_3D_SCRIPT := visualization/scripts/plot_3d_rugosity_comparison.py
 SNAPSHOT_PARAVIEW_SCRIPT := visualization/scripts/export_snapshot_paraview.py
@@ -42,6 +43,7 @@ PARAVIEW_IMAGE ?= $(PARAVIEW_DIR)/solution_snapshots.png
 PARAVIEW_VIDEO ?= $(PARAVIEW_DIR)/solution_snapshots.mp4
 PARAVIEW_PRESET ?= side-by-side-comparison
 SNAPSHOT_PLOT_ARGS ?=
+SNAPSHOT_PLOTLY_ARGS ?=
 SNAPSHOT_VIDEO_ARGS ?=
 SNAPSHOT_3D_ARGS ?=
 SNAPSHOT_PARAVIEW_ARGS ?=
@@ -187,6 +189,14 @@ plot-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
 		exit 1; \
 	fi; \
 	$(PYTHON) $(SNAPSHOT_PLOT_SCRIPT) --input "$$latest_file" $(SNAPSHOT_PLOT_ARGS)
+
+plot-snapshot-comparison-plotly: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@latest_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \
+	if [ -z "$$latest_file" ]; then \
+		echo "Error: no snapshot comparison data found in $(DATA_OUTPUT_DIR). First run 'make run-snapshot-comparison'." >&2; \
+		exit 1; \
+	fi; \
+	$(PYTHON) $(SNAPSHOT_PLOTLY_SCRIPT) --input "$$latest_file" $(SNAPSHOT_PLOTLY_ARGS)
 
 video-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
 	@latest_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \

@@ -259,9 +259,10 @@ def overlay_frame_numbers(
 
     fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_option = f":fontfile={fontfile}" if Path(fontfile).exists() else ""
+    frame_text = f"Frame %{{eif\\:n+1\\:d}}/{total_frames}"
     drawtext = (
         "drawtext="
-        f"text='Frame %{{n+1}}/{total_frames}':"
+        f"text='{frame_text}':"
         f"x=w-tw-{margin}:y={margin}:fontsize={fontsize}:"
         "fontcolor=white:box=1:boxcolor=black@0.5"
         f"{font_option}"
@@ -350,6 +351,8 @@ def _ffmpeg_encode_sequence(
             image_pattern,
             "-c:v",
             "libx264",
+            "-vf",
+            "scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-pix_fmt",
             "yuv420p",
             str(output_path),
@@ -364,6 +367,8 @@ def _ffmpeg_encode_sequence(
             image_pattern,
             "-c:v",
             "mpeg4",
+            "-vf",
+            "scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-qscale:v",
             "2",
             str(output_path),
@@ -378,6 +383,8 @@ def _ffmpeg_encode_sequence(
             image_pattern,
             "-c:v",
             "libtheora",
+            "-vf",
+            "scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-qscale:v",
             "5",
             str(output_path),
@@ -432,7 +439,9 @@ def _save_animation_to_image_sequence(
     height: int,
     fps: int,
 ) -> str:
-    image_template = str(work_dir / "frame_{0:05d}.png")
+    # ParaView inserts SuffixFormat before the extension. Keep the underscore in
+    # the template so the generated names are easy to match as frame_00000.png.
+    image_template = str(work_dir / "frame_.png")
     api.SaveAnimation(
         image_template,
         view,
@@ -442,6 +451,10 @@ def _save_animation_to_image_sequence(
     )
 
     generated_frames = sorted(work_dir.glob("frame_*.png"))
+    if not generated_frames:
+        # Some ParaView builds write frame00000.png when given frame.png.
+        # Accept that style too so the fallback is not tied to one version.
+        generated_frames = sorted(work_dir.glob("frame*.png"))
     if not generated_frames:
         fail(
             "ParaView failed to generate an image sequence for the fallback animation. "
