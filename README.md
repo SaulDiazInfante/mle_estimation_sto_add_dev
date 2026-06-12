@@ -233,6 +233,9 @@ This writes both signed-value and nonnegative-value options under
 - **Local Zoom Insets**: Every panel includes a local zoom inset centered on the
   largest absolute field value. Disable these with
   `SNAPSHOT_MANUSCRIPT_ARGS="--no-insets"` when a cleaner layout is needed.
+  The final stochastic inset is placed in the upper-left corner by default to
+  avoid covering the rough evolved surface; override it with
+  `SNAPSHOT_MANUSCRIPT_ARGS="--final-stochastic-inset-loc 'lower left'"`.
 - **Surface Mesh Cues**: A subtle black wireframe is overlaid on each surface to
   improve visibility of low-amplitude fields. Disable it with
   `SNAPSHOT_MANUSCRIPT_ARGS="--no-surface-wireframe"`.

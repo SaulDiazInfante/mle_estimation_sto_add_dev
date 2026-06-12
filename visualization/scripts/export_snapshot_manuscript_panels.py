@@ -182,6 +182,21 @@ def parse_args() -> argparse.Namespace:
         help="Fraction of each spatial axis shown in the local zoom inset.",
     )
     parser.add_argument(
+        "--inset-loc",
+        choices=["upper right", "upper left", "lower right", "lower left"],
+        default="upper right",
+        help="Default location for local zoom insets inside each 3-D panel.",
+    )
+    parser.add_argument(
+        "--final-stochastic-inset-loc",
+        choices=["upper right", "upper left", "lower right", "lower left"],
+        default="upper left",
+        help=(
+            "Location for the final stochastic inset in the combined 2x2 figure. "
+            "The default avoids the rough high-amplitude surface region."
+        ),
+    )
+    parser.add_argument(
         "--surface-wireframe",
         dest="surface_wireframe",
         action="store_true",
@@ -530,6 +545,8 @@ def _add_panel_inset(
     cmap: str,
     args: argparse.Namespace,
     is_combined: bool = False,
+    inset_loc: str | None = None,
+    compact: bool = False,
 ) -> None:
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
@@ -538,9 +555,15 @@ def _add_panel_inset(
     Y_zoom = Y[row_slice, col_slice]
     field_zoom = field[row_slice, col_slice]
     zoom_min, zoom_max = _value_limits(field_zoom)
-    width = "28%" if is_combined else "30%"
-    height = "28%" if is_combined else "30%"
-    ax_ins = inset_axes(ax, width=width, height=height, loc="upper right", borderpad=1.15)
+    width = "24%" if compact else ("28%" if is_combined else "30%")
+    height = "24%" if compact else ("28%" if is_combined else "30%")
+    ax_ins = inset_axes(
+        ax,
+        width=width,
+        height=height,
+        loc=inset_loc or args.inset_loc,
+        borderpad=1.15,
+    )
     ax_ins.imshow(
         field_zoom,
         cmap=cmap,
@@ -629,7 +652,24 @@ def _draw_combined(
         )
         surfaces[kind] = surface
         if args.insets:
-            _add_panel_inset(fig, ax, X, Y, field, cmap, args, is_combined=True)
+            is_final_stochastic = label == "final" and kind == "stochastic"
+            inset_loc = (
+                args.final_stochastic_inset_loc
+                if is_final_stochastic
+                else args.inset_loc
+            )
+            _add_panel_inset(
+                fig,
+                ax,
+                X,
+                Y,
+                field,
+                cmap,
+                args,
+                is_combined=True,
+                inset_loc=inset_loc,
+                compact=is_final_stochastic,
+            )
 
     cax_det = fig.add_axes([0.90, 0.58, 0.02, 0.32])
     cb_det = fig.colorbar(surfaces["deterministic"], cax=cax_det)
