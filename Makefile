@@ -10,6 +10,7 @@ LATEST_SNAPSHOT_PATTERN := *_deterministic_path.csv
 # Old: *_solution_snapshot_comparison.csv
 # New: *_deterministic_path.csv or *_stochastic_path.csv
 FIND_LATEST_SNAPSHOT_CMD = find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f \( -name '*_deterministic_path.csv' -o -name '*_stochastic_path.csv' -o -name '*_solution_snapshot_comparison.csv' \) | sort | tail -n 1
+FIND_LATEST_LOG_CMD = ls $(DATA_OUTPUT_DIR)/*_run*.log 2>/dev/null | sort | tail -n 1
 PAPER_MC_REPLICATES ?= 1000
 PAPER_MC_BASIS_LEVELS ?= 20
 PAPER_MC_N_OBSERVATIONS ?= 100,500
@@ -85,7 +86,7 @@ APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
 APP_OBJ += $(OBJ_DIR)/snapshot_comparison.o
 OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison run-with-log run-snapshot-comparison-with-log run-monte-carlo-with-log run-monte-carlo-paper-with-log plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-manuscript-panels export-snapshot-paraview paraview-figure-video docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison run-with-log run-snapshot-comparison-with-log run-monte-carlo-with-log run-monte-carlo-paper-with-log plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-manuscript-panels export-snapshot-paraview paraview-figure-video docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean package-outputs
 
 all: build
 
@@ -230,7 +231,23 @@ export-snapshot-paraview: | $(DATA_OUTPUT_DIR) $(PARAVIEW_DIR)
 		exit 1; \
 	fi; \
 	$(PYTHON) $(SNAPSHOT_PARAVIEW_SCRIPT) --input "$$snapshot_file" --output-dir "$(SNAPSHOT_PARAVIEW_DIR)" $(SNAPSHOT_PARAVIEW_ARGS)
-
+package-outputs: | $(DATA_OUTPUT_DIR)
+	@if [ -n "$(LOG_FILE)" ]; then log_file="$(LOG_FILE)"; else log_file=$$($(FIND_LATEST_LOG_CMD)); fi; \
+	if [ -z "$$log_file" ] || [ ! -f "$$log_file" ]; then \
+		echo "Error: log file not found." >&2; \
+		exit 1; \
+	fi; \
+	raw_time=$$(grep "Start Time:" "$$log_file" | sed "s/Start Time: //"); \
+	if [ -z "$$raw_time" ]; then \
+		echo "Error: could not find Start Time in $$log_file." >&2; \
+		exit 1; \
+	fi; \
+	tag=$$(echo "$$raw_time" | sed "s/-/_/g; s/ /-/" | tr -d "\r"); \
+	prefix=$$(basename "$$log_file" | sed "s/_run.*//"); \
+	tar_name="$${tag}_sto_adv_diff_outputs.tar"; \
+	echo "Packaging output files with prefix $$prefix into $$tar_name..."; \
+	tar --force-local -cvf "$$tar_name" -C $(DATA_OUTPUT_DIR) $$(ls $(DATA_OUTPUT_DIR)/$${prefix}* | sed "s|.*/||"); \
+	echo "Archive created: $$tar_name"
 paraview-figure-video: | $(PARAVIEW_DIR)
 	@latest_pvd="$$(find $(PARAVIEW_DIR) -maxdepth 2 -type f -name 'solution_snapshots.pvd' | sort | tail -n 1)"; \
 	if [ -z "$$latest_pvd" ]; then \
