@@ -12,8 +12,8 @@ module sde_simulation_mod
     implicit none
     private
 
-    integer, parameter :: default_progress_reports = 20
-    integer, parameter :: minimum_steps_for_progress = 10000
+    integer, parameter :: default_progress_reports = 100
+    integer, parameter :: minimum_steps_for_progress = 100
     real(dp), parameter :: pi_dp = acos(-1.0_dp)
 
     public :: set_random_seed
@@ -197,13 +197,13 @@ contains
             state = state + drift * parameters%time_step + &
                 diffusion_step * gaussian_noise
 
+            call update_progress_tracker(simulation_progress, step_index - 1)
+
             if (step_index == checkpoints(checkpoint_index)) then
                 snapshot_states(checkpoint_index, :) = state
                 checkpoint_index = checkpoint_index + 1
                 if (checkpoint_index > size(checkpoints)) exit
             end if
-
-            call update_progress_tracker(simulation_progress, step_index - 1)
         end do
 
         call finalize_progress_tracker(simulation_progress)

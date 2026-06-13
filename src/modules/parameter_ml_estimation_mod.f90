@@ -13,8 +13,8 @@ module parameter_ml_estimation_mod
     implicit none
     private
 
-    integer, parameter :: default_history_progress_reports = 20
-    integer, parameter :: default_mle_progress_reports = 20
+    integer, parameter :: default_history_progress_reports = 100
+    integer, parameter :: default_mle_progress_reports = 100
 
     public :: build_uniform_checkpoints
     public :: estimate_model_parameters

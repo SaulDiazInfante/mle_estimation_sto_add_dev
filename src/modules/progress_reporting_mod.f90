@@ -8,7 +8,7 @@ module progress_reporting_mod
     implicit none
     private
 
-    integer, parameter :: progress_bar_width = 24
+    integer, parameter :: progress_bar_width = 32
 
     !> Mutable state used to report progress for a single loop or task.
     type, public :: progress_tracker_t
@@ -21,6 +21,7 @@ module progress_reporting_mod
         integer :: report_interval = 0                !!< Spacing between progress updates.
         integer :: total_work = 0                     !!< Total number of work units in the task.
         real(real64) :: start_time = 0.0_real64       !!< Wall time recorded at tracker initialization.
+        real(real64) :: last_report_time = 0.0_real64 !!< Last time the line was refreshed.
         character(len=:), allocatable :: label        !!< Human-readable task label.
     end type progress_tracker_t
 
@@ -56,6 +57,7 @@ contains
         tracker%next_report = tracker%report_interval
 
         tracker%start_time = read_wall_time_seconds()
+        tracker%last_report_time = tracker%start_time
         call write_progress_line(tracker, 0)
     end subroutine initialize_progress_tracker
 
@@ -65,17 +67,24 @@ contains
         integer, intent(in) :: completed_work
 
         integer :: bounded_work
+        real(real64) :: current_time
 
         if (.not. tracker%enabled) return
 
         bounded_work = min(completed_work, tracker%total_work)
         tracker%last_completed_work = bounded_work
+
+        current_time = read_wall_time_seconds()
+
+        ! Report if interval reached OR at least 0.1s has passed since last update
         if (bounded_work < tracker%next_report .and. &
-            bounded_work < tracker%total_work) then
+            bounded_work < tracker%total_work .and. &
+            current_time - tracker%last_report_time < 0.1_real64) then
             return
         end if
 
         call write_progress_line(tracker, bounded_work)
+        tracker%last_report_time = current_time
 
         do while (tracker%next_report <= bounded_work .and. &
             tracker%next_report < tracker%total_work)
@@ -149,23 +158,26 @@ contains
         character(len=320) :: base_line
         character(len=640) :: progress_line
         character(len=progress_bar_width) :: progress_bar
-        character(len=32) :: eta_display
+        character(len=32) :: elapsed_display, eta_display
+        character(len=32) :: rate_display
         real(real64) :: completion_fraction
         real(real64) :: current_time
         real(real64) :: elapsed_seconds
         real(real64) :: eta_seconds
+        real(real64) :: iterations_per_second
         integer :: current_line_length
         integer :: filled_segments
         integer :: padding_length
-        integer :: eta_hours, eta_minutes, eta_secs, eta_total
+        integer :: h, m, s, total_s
 
         current_time = read_wall_time_seconds()
-        elapsed_seconds = current_time - tracker%start_time
+        elapsed_seconds = max(1e-6_real64, current_time - tracker%start_time)
 
         completion_fraction = 0.0_real64
         eta_seconds = 0.0_real64
+        iterations_per_second = real(completed_work, real64) / elapsed_seconds
 
-        if (tracker%total_work > 0 .and. completed_work > 0) then
+        if (tracker%total_work > 0) then
             completion_fraction = real(completed_work, real64) / &
                 real(tracker%total_work, real64)
 
@@ -176,36 +188,56 @@ contains
             end if
         end if
 
-        ! Format ETA with hours, minutes, seconds
-        eta_total = int(eta_seconds)
-        eta_hours = eta_total / 3600
-        eta_minutes = (eta_total - eta_hours * 3600) / 60
-        eta_secs = eta_total - eta_hours * 3600 - eta_minutes * 60
-        
-        if (eta_hours > 0) then
-            write (eta_display, '(i0,"h ",i0,"m ",i0,"s")') eta_hours, eta_minutes, eta_secs
-        else if (eta_minutes > 0) then
-            write (eta_display, '(i0,"m ",i0,"s")') eta_minutes, eta_secs
+        ! Format Elapsed Time
+        total_s = int(elapsed_seconds)
+        h = total_s / 3600
+        m = (total_s - h * 3600) / 60
+        s = total_s - h * 3600 - m * 60
+        if (h > 0) then
+            write (elapsed_display, '(i0,":",i2.2,":",i2.2)') h, m, s
         else
-            write (eta_display, '(i0,"s")') eta_secs
+            write (elapsed_display, '(i2.2,":",i2.2)') m, s
+        end if
+
+        ! Format ETA
+        total_s = int(eta_seconds)
+        h = total_s / 3600
+        m = (total_s - h * 3600) / 60
+        s = total_s - h * 3600 - m * 60
+        if (h > 0) then
+            write (eta_display, '(i0,":",i2.2,":",i2.2)') h, m, s
+        else
+            write (eta_display, '(i2.2,":",i2.2)') m, s
+        end if
+
+        ! Format Rate
+        if (iterations_per_second >= 1000.0_real64) then
+            write (rate_display, '(f0.2,"kit/s")') iterations_per_second / 1000.0_real64
+        else
+            write (rate_display, '(f0.2,"it/s")') iterations_per_second
         end if
 
         filled_segments = int(completion_fraction * real(progress_bar_width, real64))
         filled_segments = max(0, min(progress_bar_width, filled_segments))
+        
+        ! Use block characters if we want tqdm style, but for portability
+        ! we'll stick to # for now, but maybe try unicode if it works.
+        ! Many modern terminals handle UTF-8. 
+        ! Let's try to make it look like: 76%|████████|
+        ! For now, ASCII: 76%|########|
         progress_bar = repeat('#', filled_segments) // &
-            repeat('-', progress_bar_width - filled_segments)
+            repeat(' ', progress_bar_width - filled_segments)
 
-        write (base_line, '(a,1x,"[",a,"]",1x,f6.2,a,2x,'// &
-            '"(",i0,"/",i0,")",2x,"eta ",a)') &
-            trim(tracker%label), progress_bar, &
-            100.0_real64 * completion_fraction, "%", completed_work, &
-            tracker%total_work, trim(adjustl(eta_display))
+        write (base_line, '(a,":",1x,i3,"%|",a,"|",1x,i0,"/",i0," [",a,"<",a,", ",a,"]")') &
+            trim(tracker%label), min(100, nint(100.0_real64 * completion_fraction)), &
+            progress_bar, completed_work, tracker%total_work, &
+            trim(adjustl(elapsed_display)), trim(adjustl(eta_display)), &
+            trim(adjustl(rate_display))
 
         progress_line = trim(base_line)
         if (allocated(tracker%detail)) then
             if (len_trim(tracker%detail) > 0) then
-                progress_line = trim(progress_line)//"  |  "// &
-                    trim(tracker%detail)
+                progress_line = trim(progress_line)//"  "//trim(tracker%detail)
             end if
         end if
 
