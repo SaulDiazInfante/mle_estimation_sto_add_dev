@@ -1,0 +1,7 @@
+# Exclude large data and visualization files from Gemini Code Assist indexing
+data/
+visualization/
+build/
+tests/artifacts/
+*.csv
+*.log

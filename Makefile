@@ -132,7 +132,12 @@ run-with-log: build | $(DATA_OUTPUT_DIR)
 
 run-snapshot-comparison-with-log: build | $(DATA_OUTPUT_DIR)
 	@target_log="data/output/$(TIMESTAMP)_run_snapshot_comparison.log"; \
+	target_params="data/output/$(TIMESTAMP)_snapshot_comparison_params.txt"; \
 	echo "Logging simulation to $$target_log"; \
+	if [ -f data/input/snapshot_comparison.env ]; then \
+		cp data/input/snapshot_comparison.env "$$target_params"; \
+		echo "Saved environment parameters to $$target_params"; \
+	fi; \
 	echo "============================================================" > "$$target_log"; \
 	echo "Simulation Log: run-snapshot-comparison" >> "$$target_log"; \
 	echo "Start Time: $$(date '+%Y-%m-%d %H:%M:%S')" >> "$$target_log"; \
