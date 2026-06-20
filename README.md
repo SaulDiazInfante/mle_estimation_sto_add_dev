@@ -334,3 +334,10 @@ Run `make setup-git-hooks` once per clone to activate the local pre-commit size 
 - Contribution templates and issue forms are included under `.github/`.
 
 See [docs/github_publish.md](docs/github_publish.md) for the exact publish steps and [docs/testing_strategy.md](docs/testing_strategy.md) for the TDD-oriented test layout.
+
+## Collaborators
+
+- Fernando Baltazar-Larios
+- Francisco Delgado-Vences
+- Saul Diaz-Infante
+- Gerardo Hernandez-Dueñas
