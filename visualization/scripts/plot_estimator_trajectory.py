@@ -10,7 +10,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
-from matplotlib.colors import Colormap, Normalize, SymLogNorm
+from matplotlib.colors import Colormap, Normalize, SymLogNorm, PowerNorm
 from matplotlib.patches import Patch
 
 DEFAULT_INPUT_DIR = Path("data/output")
@@ -96,7 +96,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--tolerance-background-cmap",
-        default="turbo",
+        default="Spectral",
         help="Matplotlib colormap for the tolerance-distance background.",
     )
     parser.add_argument(
@@ -107,8 +107,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--tolerance-background-scale",
-        choices=("linear", "log"),
-        default="log",
+        choices=("linear", "log", "power"),
+        default="power",
         help="Color normalization for the tolerance-distance background.",
     )
     parser.add_argument(
@@ -322,24 +322,31 @@ def format_tolerance_label(tolerance_band: float) -> str:
     return f"{percent_value:.2f}% tolerance band"
 
 
-def build_tolerance_norm(max_rel_error: float, scale: str) -> Normalize:
+def build_tolerance_norm(max_rel_error: float, scale: str, vmin: float = 0.0) -> Normalize:
     if scale == "log":
         return SymLogNorm(
             linthresh=max_rel_error * 0.01,
-            vmin=0.0,
+            vmin=vmin,
             vmax=max_rel_error,
             base=10.0,
             clip=True,
         )
+    if scale == "power":
+        return PowerNorm(
+            gamma=0.5,
+            vmin=vmin,
+            vmax=max_rel_error,
+            clip=True,
+        )
 
-    return Normalize(vmin=0.0, vmax=max_rel_error, clip=True)
+    return Normalize(vmin=vmin, vmax=max_rel_error, clip=True)
 
 
-def tolerance_colorbar_ticks(max_rel_error: float, scale: str) -> list[float]:
+def tolerance_colorbar_ticks(max_rel_error: float, scale: str, vmin: float = 0.0) -> list[float]:
     if scale == "log":
-        return [0.0, max_rel_error * 0.1, max_rel_error]
+        return [vmin, max_rel_error * 0.1, max_rel_error]
 
-    return [0.0, 0.5 * max_rel_error, max_rel_error]
+    return [vmin, 0.5 * max_rel_error, max_rel_error]
 
 
 def tolerance_distance_multiple(
@@ -424,26 +431,47 @@ def plot_tolerance_background(
     if lower == upper:
         return
 
-    edges = x_value_edges(x_values)
-    if len(edges) < 2:
-        return
-
-    for left, right, estimate_value, reference_value in zip(
-        edges[:-1],
-        edges[1:],
-        estimate,
-        reference,
-    ):
-        # Relative error in percentage
-        rel_error = (abs(estimate_value - reference_value) / max(abs(reference_value), 1.0e-12)) * 100.0
-        ax.axvspan(
-            left,
-            right,
-            color=cmap(norm(rel_error)),
-            alpha=alpha,
-            linewidth=0.0,
-            zorder=0,
-        )
+    # Create a grid of values for the background
+    # The color depends only on the y-value (the distance from the truth)
+    import numpy as np
+    y_res = 200
+    y_vals = np.linspace(lower, upper, y_res)
+    
+    # Calculate the relative error for each y_val
+    # truth is constant for a given panel
+    truth = reference[0]
+    
+    # Background color as a function of y only
+    rel_errors = []
+    for y in y_vals:
+        # relative error = |y - truth| / truth * 100
+        rel_err = (abs(y - truth) / max(abs(truth), 1.0e-12)) * 100.0
+        rel_errors.append(rel_err)
+    
+    # To use pcolormesh, we need coordinates of the corners (edges).
+    # For a single strip across X:
+    xmin, xmax = ax.get_xlim()
+    X = np.array([xmin, xmax])
+    
+    # Y contains the edges of the horizontal strips.
+    # Y has length y_res.
+    Y = y_vals
+    
+    # C contains the colors for each strip.
+    # C has shape (y_res - 1, 1).
+    C = np.array(rel_errors[:-1]).reshape(-1, 1)
+    
+    # Use pcolormesh to draw the background
+    ax.pcolormesh(
+        X, 
+        Y, 
+        C, 
+        cmap=cmap, 
+        norm=norm, 
+        alpha=alpha, 
+        zorder=0, 
+        shading='flat'
+    )
 
     ax.set_ylim(lower, upper)
 
@@ -664,9 +692,14 @@ def main() -> None:
         y=0.97,
     )
     tolerance_cmap = plt.get_cmap(args.tolerance_background_cmap)
+    
+    # Start the colormap at half the tolerance band in percentage
+    vmin = args.tolerance_band * 50.0
+    
     tolerance_norm = build_tolerance_norm(
         args.tolerance_background_max_multiple,
         args.tolerance_background_scale,
+        vmin=vmin,
     )
 
     estimate_handle = None
@@ -724,6 +757,7 @@ def main() -> None:
         colorbar_ticks = tolerance_colorbar_ticks(
             args.tolerance_background_max_multiple,
             args.tolerance_background_scale,
+            vmin=vmin,
         )
         colorbar.set_ticks(colorbar_ticks)
         colorbar.set_ticklabels([f"{t:g}%" for t in colorbar_ticks])
