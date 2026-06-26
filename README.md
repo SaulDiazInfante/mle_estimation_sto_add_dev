@@ -116,9 +116,14 @@ make generate-estimator-trajectory-data \
   ESTIMATOR_TRAJECTORY_MIN_OBSERVATIONS=10000
 ```
 
-The estimator trajectory plot defaults to `n_obs` on the x-axis, a linear
-y-axis, and a 5% tolerance band. You can change the plotted quantity without
-calling the Python script directly:
+The estimator trajectory plot defaults to `n_obs` on the x-axis, a log
+y-axis, a 0.05% tolerance band, and the observation window from the first
+`n_obs` value in the input file to 40000. Each parameter panel also uses a
+green-yellow-red background colormap over the observation axis for the
+trajectory distance from the true value. By default, colors are normalized per
+panel so each parameter shows its 5th-percentile, median, and 95th-percentile
+relative-error levels. You can change the plotted quantity without calling the
+Python script directly:
 
 ```bash
 make plot-estimator-trajectory \
@@ -127,7 +132,7 @@ make plot-estimator-trajectory \
 make plot-estimator-trajectory \
   ESTIMATOR_TRAJECTORY_MODE=relative-error \
   ESTIMATOR_TRAJECTORY_X_AXIS=time \
-  ESTIMATOR_TRAJECTORY_TOLERANCE_BAND=0.01
+  ESTIMATOR_TRAJECTORY_TOLERANCE_BAND=0.0005
 ```
 
 Supported plot controls are:
@@ -135,7 +140,15 @@ Supported plot controls are:
 - `ESTIMATOR_TRAJECTORY_X_AXIS=n_obs|time`
 - `ESTIMATOR_TRAJECTORY_MODE=value|normalized|relative-error`
 - `ESTIMATOR_TRAJECTORY_Y_SCALE=linear|log|auto`
-- `ESTIMATOR_TRAJECTORY_TOLERANCE_BAND=0.05`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BAND=0.0005`
+- `ESTIMATOR_TRAJECTORY_MIN_OBSERVATION=` uses the first `n_obs` value in the input file
+- `ESTIMATOR_TRAJECTORY_MAX_OBSERVATION=40000`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND=1`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND_CMAP=RdYlGn_r`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND_MAX_MULTIPLE=0.2`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND_SCALE=log`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND_ALPHA=0.34`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND_NORMALIZATION=panel`
 
 Long simulations print progress updates from the time-stepping loop at regular
 checkpoints so you can monitor the run while it is executing.
