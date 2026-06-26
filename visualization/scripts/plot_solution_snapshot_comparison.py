@@ -63,6 +63,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Plot every k-th velocity vector in each direction.",
     )
+    parser.add_argument(
+        "--cmap",
+        default=None,
+        help="Colormap to use. Defaults to 'winter' (or 'RdBu_r' if zero-centered).",
+    )
     return parser.parse_args()
 
 
@@ -220,16 +225,19 @@ def format_time_label(time_value: float) -> str:
     return f"{time_value:g}"
 
 
-def choose_color_scale(fields: dict[tuple[str, float], np.ndarray]) -> tuple[float, float, str]:
+def choose_color_scale(fields: dict[tuple[str, float], np.ndarray], cmap: str | None = None) -> tuple[float, float, str]:
     all_values = np.concatenate([field.ravel() for field in fields.values()])
     value_min = float(np.min(all_values))
     value_max = float(np.max(all_values))
+
+    if cmap is not None:
+        return value_min, value_max, cmap
 
     if value_min < 0.0 < value_max:
         limit = max(abs(value_min), abs(value_max))
         return -limit, limit, "RdBu_r"
 
-    return value_min, value_max, "viridis"
+    return value_min, value_max, "winter"
 
 
 def read_int_setting(
@@ -336,7 +344,7 @@ def main() -> None:
     }
     x_edges = centers_to_edges(x_coordinates)
     y_edges = centers_to_edges(y_coordinates)
-    vmin, vmax, cmap = choose_color_scale(display_fields)
+    vmin, vmax, cmap = choose_color_scale(display_fields, args.cmap)
     velocity_mode_x = read_int_setting(
         args.velocity_mode_x,
         metadata,

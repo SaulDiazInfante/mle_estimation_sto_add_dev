@@ -43,10 +43,25 @@ PARAVIEW_VIS_SCRIPT := visualization/scripts/paraview_solution_snapshot_visualiz
 PARAVIEW_IMAGE ?= $(PARAVIEW_DIR)/solution_snapshots.png
 PARAVIEW_VIDEO ?= $(PARAVIEW_DIR)/solution_snapshots.mp4
 PARAVIEW_PRESET ?= side-by-side-comparison
-SNAPSHOT_PLOT_ARGS ?=
-SNAPSHOT_VIDEO_ARGS ?=
+SNAPSHOT_PLOT_CMAP ?=
+SNAPSHOT_PLOT_ARGS += $(if $(SNAPSHOT_PLOT_CMAP),--cmap $(SNAPSHOT_PLOT_CMAP))
+ESTIMATOR_TRAJECTORY_DATA_OUTPUT ?=
+ESTIMATOR_TRAJECTORY_MIN_OBSERVATIONS ?=
+ESTIMATOR_TRAJECTORY_POINTS ?=
+ESTIMATOR_TRAJECTORY_WRITE_STATE_HISTORY ?= 0
+ESTIMATOR_TRAJECTORY_INPUT ?=
+ESTIMATOR_TRAJECTORY_OUTPUT ?=
+ESTIMATOR_TRAJECTORY_X_AXIS ?= n_obs
+ESTIMATOR_TRAJECTORY_MODE ?= value
+ESTIMATOR_TRAJECTORY_Y_SCALE ?= linear
+ESTIMATOR_TRAJECTORY_TOLERANCE_BAND ?= 0.05
+ESTIMATOR_TRAJECTORY_ARGS += --x-axis $(ESTIMATOR_TRAJECTORY_X_AXIS)
+ESTIMATOR_TRAJECTORY_ARGS += --mode $(ESTIMATOR_TRAJECTORY_MODE)
+ESTIMATOR_TRAJECTORY_ARGS += --y-scale $(ESTIMATOR_TRAJECTORY_Y_SCALE)
+ESTIMATOR_TRAJECTORY_ARGS += --tolerance-band $(ESTIMATOR_TRAJECTORY_TOLERANCE_BAND)
 SNAPSHOT_3D_ARGS ?=
-SNAPSHOT_MANUSCRIPT_ARGS ?=
+SNAPSHOT_MANUSCRIPT_CMAP ?=
+SNAPSHOT_MANUSCRIPT_ARGS += $(if $(SNAPSHOT_MANUSCRIPT_CMAP),--cmap $(SNAPSHOT_MANUSCRIPT_CMAP))
 SNAPSHOT_PARAVIEW_ARGS ?=
 SNAPSHOT_MANUSCRIPT_INPUT ?=
 SNAPSHOT_PARAVIEW_INPUT ?=
@@ -86,7 +101,7 @@ APP_OBJ += $(OBJ_DIR)/monte_carlo_study.o
 APP_OBJ += $(OBJ_DIR)/snapshot_comparison.o
 OBJ := $(COMMON_MODULE_OBJ) $(APP_OBJ)
 
-.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison run-with-log run-snapshot-comparison-with-log run-monte-carlo-with-log run-monte-carlo-paper-with-log plot plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-manuscript-panels export-snapshot-paraview paraview-figure-video docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean package-outputs
+.PHONY: all build run run-monte-carlo run-monte-carlo-paper run-snapshot-comparison run-with-log run-snapshot-comparison-with-log run-monte-carlo-with-log run-monte-carlo-paper-with-log generate-estimator-trajectory-data plot plot-estimator-trajectory plot-snapshot-comparison video-snapshot-comparison plot-3d-rugosity export-snapshot-manuscript-panels export-snapshot-paraview paraview-figure-video docs test test-smoke test-monte-carlo test-snapshot-comparison test-unit check-large-files setup-git-hooks clean distclean package-outputs
 
 all: build
 
@@ -94,6 +109,14 @@ build: $(RUN_TARGET) $(MONTE_CARLO_TARGET) $(SNAPSHOT_COMPARISON_TARGET)
 
 run: build | $(DATA_OUTPUT_DIR)
 	SPDE_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(RUN_TARGET)
+
+generate-estimator-trajectory-data: build | $(DATA_OUTPUT_DIR)
+	SPDE_OUTPUT_TIMESTAMP='$(TIMESTAMP)' \
+	SPDE_WRITE_STATE_HISTORY='$(ESTIMATOR_TRAJECTORY_WRITE_STATE_HISTORY)' \
+	$(if $(ESTIMATOR_TRAJECTORY_DATA_OUTPUT),SPDE_ESTIMATOR_HISTORY_FILE='$(ESTIMATOR_TRAJECTORY_DATA_OUTPUT)') \
+	$(if $(ESTIMATOR_TRAJECTORY_MIN_OBSERVATIONS),SPDE_MINIMUM_TRAJECTORY_OBSERVATIONS='$(ESTIMATOR_TRAJECTORY_MIN_OBSERVATIONS)') \
+	$(if $(ESTIMATOR_TRAJECTORY_POINTS),SPDE_REQUESTED_TRAJECTORY_POINTS='$(ESTIMATOR_TRAJECTORY_POINTS)') \
+	$(RUN_TARGET)
 
 run-monte-carlo: build | $(DATA_OUTPUT_DIR)
 	SPDE_OUTPUT_TIMESTAMP='$(TIMESTAMP)' $(MONTE_CARLO_TARGET)
@@ -181,13 +204,23 @@ run-monte-carlo-paper-with-log: build | $(DATA_OUTPUT_DIR)
 	echo "Status: SUCCESS" >> "$$target_log" || \
 	echo "Status: FAILED" >> "$$target_log"
 
-plot: | $(PLOT_DIR)
-	@latest_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_ESTIMATOR_PATTERN)' | sort | tail -n 1)"; \
-	if [ -z "$$latest_file" ]; then \
+plot: plot-estimator-trajectory
+
+plot-estimator-trajectory: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
+	@if [ -n "$(ESTIMATOR_TRAJECTORY_INPUT)" ]; then \
+		estimator_file="$(ESTIMATOR_TRAJECTORY_INPUT)"; \
+	else \
+		estimator_file="$$(find $(DATA_OUTPUT_DIR) -maxdepth 1 -type f -name '$(LATEST_ESTIMATOR_PATTERN)' | sort | tail -n 1)"; \
+	fi; \
+	if [ -z "$$estimator_file" ]; then \
 		echo "Error: no generated estimator data was found in $(DATA_OUTPUT_DIR). First run the application with 'make run'." >&2; \
 		exit 1; \
 	fi; \
-	$(PYTHON) $(PLOT_SCRIPT) --input "$$latest_file"
+	if [ -n "$(ESTIMATOR_TRAJECTORY_OUTPUT)" ]; then \
+		$(PYTHON) $(PLOT_SCRIPT) --input "$$estimator_file" --output "$(ESTIMATOR_TRAJECTORY_OUTPUT)" $(ESTIMATOR_TRAJECTORY_ARGS); \
+	else \
+		$(PYTHON) $(PLOT_SCRIPT) --input "$$estimator_file" $(ESTIMATOR_TRAJECTORY_ARGS); \
+	fi
 
 plot-snapshot-comparison: | $(DATA_OUTPUT_DIR) $(PLOT_DIR)
 	@latest_file="$$( $(FIND_LATEST_SNAPSHOT_CMD) )"; \

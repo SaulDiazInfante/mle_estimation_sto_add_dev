@@ -117,12 +117,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--cmap-deterministic",
-        default="turbo",
+        default="winter",
         help="Colormap for deterministic panels.",
     )
     parser.add_argument(
         "--cmap-stochastic",
-        default="Spectral_r",
+        default="winter",
         help="Colormap for stochastic panels.",
     )
     parser.add_argument(

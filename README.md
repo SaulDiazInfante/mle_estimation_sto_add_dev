@@ -29,7 +29,9 @@ equation, estimating model parameters, and visualizing estimator trajectories.
 - `make run-snapshot-comparison-with-log`: same as `make run-snapshot-comparison` with logging.
 - `make run-monte-carlo-with-log`: same as `make run-monte-carlo` with logging.
 - `make run-monte-carlo-paper-with-log`: same as `make run-monte-carlo-paper` with logging (recommended for paper studies).
-- `make plot`: plot the latest generated estimator CSV already present in `data/output/`.
+- `make generate-estimator-trajectory-data`: generate the estimator-history CSV used by the trajectory plot.
+- `make plot-estimator-trajectory`: plot an estimator-history CSV produced by `estimate_parameter_history`.
+- `make plot`: alias for `make plot-estimator-trajectory`.
 - `make plot-snapshot-comparison`: plot the latest reconstructed snapshot comparison CSV.
 - `make video-snapshot-comparison`: animate the latest reconstructed snapshot comparison CSV.
 - `make export-snapshot-paraview`: export the latest reconstructed snapshot CSV as ParaView `.pvd` and `.vts` files.
@@ -81,8 +83,59 @@ You can also provide `TIMESTAMP=20260317T124705` to `make run`
 to force a specific output prefix. If you pass an older extended form such as
 `2026-03-17T12:47:05`, the application normalizes it before creating filenames.
 
-`make plot` does not rerun the Fortran application. If there is no estimator CSV in
-`data/output`, it stops with an error asking you to run `make run` first.
+`make plot-estimator-trajectory` does not rerun the Fortran application. If there
+is no estimator CSV in `data/output`, it stops with an error asking you to run
+`make run` first.
+
+Generate the estimator-history CSV and plot the latest result with:
+
+```bash
+make generate-estimator-trajectory-data
+make plot-estimator-trajectory
+```
+
+`generate-estimator-trajectory-data` runs the maintained application driver and
+calls `estimate_parameter_history`, but it disables state-history CSV output by
+default so the target focuses on the data used by the plot. You can bind both
+the generated CSV and image paths:
+
+```bash
+make generate-estimator-trajectory-data \
+  ESTIMATOR_TRAJECTORY_DATA_OUTPUT=data/output/20260317T124705_estimator_trajectory.csv
+
+make plot-estimator-trajectory \
+  ESTIMATOR_TRAJECTORY_INPUT=data/output/20260317T124705_estimator_trajectory.csv \
+  ESTIMATOR_TRAJECTORY_OUTPUT=visualization/plots/20260317T124705_estimator_trajectory.png
+```
+
+You can also adjust the number of checkpoints in the history estimate:
+
+```bash
+make generate-estimator-trajectory-data \
+  ESTIMATOR_TRAJECTORY_POINTS=500 \
+  ESTIMATOR_TRAJECTORY_MIN_OBSERVATIONS=10000
+```
+
+The estimator trajectory plot defaults to `n_obs` on the x-axis, a linear
+y-axis, and a 5% tolerance band. You can change the plotted quantity without
+calling the Python script directly:
+
+```bash
+make plot-estimator-trajectory \
+  ESTIMATOR_TRAJECTORY_MODE=normalized
+
+make plot-estimator-trajectory \
+  ESTIMATOR_TRAJECTORY_MODE=relative-error \
+  ESTIMATOR_TRAJECTORY_X_AXIS=time \
+  ESTIMATOR_TRAJECTORY_TOLERANCE_BAND=0.01
+```
+
+Supported plot controls are:
+
+- `ESTIMATOR_TRAJECTORY_X_AXIS=n_obs|time`
+- `ESTIMATOR_TRAJECTORY_MODE=value|normalized|relative-error`
+- `ESTIMATOR_TRAJECTORY_Y_SCALE=linear|log|auto`
+- `ESTIMATOR_TRAJECTORY_TOLERANCE_BAND=0.05`
 
 Long simulations print progress updates from the time-stepping loop at regular
 checkpoints so you can monitor the run while it is executing.
@@ -165,6 +218,10 @@ You can override the snapshot-specific settings with:
 - `SPDE_SNAPSHOT_GRID_NX`
 - `SPDE_SNAPSHOT_GRID_NY`
 - `SPDE_SNAPSHOT_COMPARISON_FILE`
+- `SNAPSHOT_PLOT_CMAP` (e.g., `make plot-snapshot-comparison SNAPSHOT_PLOT_CMAP=turbo`)
+- `SNAPSHOT_MANUSCRIPT_CMAP` (e.g., `make export-snapshot-manuscript-panels SNAPSHOT_MANUSCRIPT_CMAP=turbo`)
+
+Recommended colormaps for scientific visualization: `turbo`, `magma`, `plasma`, `inferno`, `viridis`.
 
 `SPDE_SNAPSHOT_GRID_NX` and `SPDE_SNAPSHOT_GRID_NY` control only the
 physical plotting grid used for reconstructed fields. They default to
