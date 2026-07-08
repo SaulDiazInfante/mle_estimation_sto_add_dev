@@ -11,11 +11,16 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Colormap, Normalize, SymLogNorm, PowerNorm
+from matplotlib.ticker import FixedLocator
 from matplotlib.patches import Patch
 
 DEFAULT_INPUT_DIR = Path("data/output")
 DEFAULT_PLOT_DIR = Path("visualization/plots")
 ESTIMATOR_SUFFIX = "_estimator_trajectory.csv"
+MM_PER_INCH = 25.4
+DEFAULT_FIGURE_WIDTH_MM = 190.0
+DEFAULT_FIGURE_HEIGHT_MM = 225.0
+DEFAULT_DPI = 500
 PARAMETER_PANELS = (
     {
         "estimate_key": "sigma_hat",
@@ -67,7 +72,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--y-scale",
         choices=("linear", "log", "auto"),
-        default="log",
+        default="linear",
         help="Vertical scaling. Use auto to restore sign-aware automatic scaling.",
     )
     parser.add_argument(
@@ -96,25 +101,25 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--tolerance-background-cmap",
-        default="Spectral",
+        default="berlin",
         help="Matplotlib colormap for the tolerance-distance background.",
     )
     parser.add_argument(
         "--tolerance-background-max-multiple",
         type=float,
-        default=0.2,
+        default=0.7,
         help="Tolerance multiple mapped to the farthest background color.",
     )
     parser.add_argument(
         "--tolerance-background-scale",
         choices=("linear", "log", "power"),
-        default="power",
+        default="linear",
         help="Color normalization for the tolerance-distance background.",
     )
     parser.add_argument(
         "--tolerance-background-alpha",
         type=float,
-        default=0.34,
+        default=0.8,
         help="Opacity for the tolerance-distance background.",
     )
     parser.add_argument(
@@ -123,8 +128,57 @@ def parse_args() -> argparse.Namespace:
         default="panel",
         help="Normalize colors per panel or against the absolute max multiple.",
     )
+    parser.add_argument(
+        "--figure-width-mm",
+        type=float,
+        default=DEFAULT_FIGURE_WIDTH_MM,
+        help=(
+            "Printed figure width in millimeters. Defaults to Elsevier's "
+            "190 mm full-width artwork size."
+        ),
+    )
+    parser.add_argument(
+        "--figure-height-mm",
+        type=float,
+        default=DEFAULT_FIGURE_HEIGHT_MM,
+        help="Printed figure height in millimeters.",
+    )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=DEFAULT_DPI,
+        help=(
+            "Raster export resolution. Defaults to 500 dpi, suitable for "
+            "combination artwork."
+        ),
+    )
     parser.set_defaults(tolerance_background=True)
     return parser.parse_args()
+
+
+def mm_to_inches(value_mm: float) -> float:
+    return value_mm / MM_PER_INCH
+
+
+def configure_publication_style() -> None:
+    """Set finished-size typography for a full-width journal figure."""
+    plt.rcParams.update(
+        {
+            "font.family": "sans-serif",
+            "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+            "font.size": 7.5,
+            "axes.titlesize": 9.0,
+            "axes.labelsize": 8.0,
+            "axes.linewidth": 0.7,
+            "xtick.labelsize": 7.0,
+            "ytick.labelsize": 7.0,
+            "legend.fontsize": 7.0,
+            "legend.title_fontsize": 7.0,
+            "figure.titlesize": 10.0,
+            "savefig.dpi": DEFAULT_DPI,
+            "savefig.facecolor": "white",
+        }
+    )
 
 
 def resolve_input_path(argument: str | None) -> Path:
@@ -551,6 +605,77 @@ def center_panel_on_truth(
     ax.set_ylim(low, high)
 
 
+def add_inset_zoom(
+    ax: plt.Axes,
+    x_values: Sequence[float] | Sequence[int],
+    estimate: list[float],
+    truth: list[float],
+    symbol: str,
+    mode: str,
+    y_scale: str,
+    tolerance_band: float,
+) -> None:
+    # Focus on the region where the estimator has converged (last 25% of data)
+    n = len(x_values)
+    start_idx = int(n * 0.75)
+    
+    x_zoom = x_values[start_idx:]
+    est_zoom = estimate[start_idx:]
+    tru_zoom = truth[start_idx:]
+    
+    # Transform for zoomed values
+    plot_est_zoom, plot_tru_zoom = transform_series(est_zoom, tru_zoom, mode)
+    
+    # Position: Bottom-right of the main axes to improve readability
+    ax_ins = ax.inset_axes([0.6, 0.1, 0.3, 0.3])
+    
+    # Plot trajectories in inset
+    ax_ins.plot(
+        x_zoom,
+        plot_est_zoom,
+        color="#007acc",
+        linewidth=0.9,
+        zorder=3,
+    )
+    ax_ins.plot(
+        x_zoom,
+        plot_tru_zoom,
+        color="black",
+        linewidth=0.8,
+        linestyle="--",
+        zorder=4,
+    )
+    
+    # Replicate tolerance band in inset
+    if tolerance_band > 0.0:
+        plot_tolerance_band(ax_ins, plot_tru_zoom, mode, tolerance_band)
+    
+    # Tighten Y-limits to observe oscillations
+    all_z_vals = plot_est_zoom + plot_tru_zoom
+    z_min, z_max = min(all_z_vals), max(all_z_vals)
+    margin = (z_max - z_min) * 0.1 if z_max != z_min else 0.01
+    y_low, y_high = z_min - margin, z_max + margin
+    ax_ins.set_ylim(y_low, y_high)
+    
+    # Apply scale only if it's not linear (since we just set limits)
+    if y_scale != "linear":
+        ax_ins.set_yscale(y_scale if y_scale != "auto" else "linear")
+    
+    # Set exactly three ticks on y-axis AFTER scaling to prevent reset
+    ticks = [y_low, (y_low + y_high) / 2, y_high]
+    ax_ins.yaxis.set_major_locator(FixedLocator(ticks))
+    ax_ins.yaxis.set_minor_locator(plt.NullLocator())
+    
+    # Clean up inset appearance
+    ax_ins.tick_params(labelsize=6.0)
+    ax_ins.grid(True, alpha=0.2, zorder=2)
+    
+    # Add a box around the inset to distinguish it
+    for spine in ax_ins.spines.values():
+        spine.set_linewidth(0.6)
+        spine.set_edgecolor("0.3")
+
+
 def add_panel(
     ax: plt.Axes,
     x_values: Sequence[float] | Sequence[int],
@@ -569,14 +694,15 @@ def add_panel(
     tolerance_background_alpha: float,
     highlight_convergence: bool = False,
     center_panel: bool = False,
+    zoom_inset: bool = False,
 ) -> tuple[plt.Line2D, plt.Line2D]:
     plot_estimate, plot_truth = transform_series(estimate, truth, mode)
 
     estimate_line, = ax.plot(
         x_values,
         plot_estimate,
-        color="#155884",
-        linewidth=2.0,
+        color="#007acc",
+        linewidth=1.3,
         label="Estimate",
         zorder=3,
     )
@@ -584,12 +710,18 @@ def add_panel(
         x_values,
         plot_truth,
         color="black",
-        linewidth=1.8,
+        linewidth=1.0,
         linestyle="--",
         label=reference_label(mode),
         zorder=4,
     )
+    
+    ax.set_axisbelow(True)
     configure_y_scale(ax, plot_estimate, plot_truth, rf"${symbol}$", y_scale)
+    
+    if center_panel:
+        center_panel_on_truth(ax, plot_truth, mode, y_scale, tolerance_band)
+
     if tolerance_background:
         plot_tolerance_background(
             ax,
@@ -605,22 +737,18 @@ def add_panel(
             tolerance_background_alpha,
         )
     plot_tolerance_band(ax, plot_truth, mode, tolerance_band)
-
-    if highlight_convergence and tolerance_band > 0.0:
-        for x, est, tru in zip(x_values, plot_estimate, plot_truth):
-            if tolerance_distance_multiple(est, tru, mode, tolerance_band) <= 1.0:
-                ax.axvline(
-                    x,
-                    color="black",
-                    linestyle=":",
-                    linewidth=1.5,
-                    alpha=0.6,
-                    zorder=2,
-                )
-                break
-
-    if center_panel:
-        center_panel_on_truth(ax, plot_truth, mode, y_scale, tolerance_band)
+    
+    if zoom_inset:
+        add_inset_zoom(
+            ax,
+            x_values,
+            estimate,
+            truth,
+            symbol,
+            mode,
+            y_scale,
+            tolerance_band,
+        )
 
     ax.set_title(rf"${symbol}$")
     ax.text(
@@ -630,11 +758,11 @@ def add_panel(
         transform=ax.transAxes,
         ha="right",
         va="top",
-        fontsize=12,
+        fontsize=8.5,
         fontweight="bold",
     )
     ax.set_ylabel(y_axis_label(mode, symbol))
-    ax.grid(True, alpha=0.3, zorder=2)
+    ax.grid(True, alpha=0.4, zorder=2)
     return estimate_line, truth_line
 
 
@@ -658,12 +786,24 @@ def title_for_mode(mode: str) -> str:
 
 def main() -> None:
     args = parse_args()
+    if args.figure_width_mm <= 0.0:
+        msg = "--figure-width-mm must be positive"
+        raise ValueError(msg)
+    if args.figure_height_mm <= 0.0:
+        msg = "--figure-height-mm must be positive"
+        raise ValueError(msg)
+    if args.dpi <= 0:
+        msg = "--dpi must be positive"
+        raise ValueError(msg)
     if args.tolerance_background_max_multiple <= 0.0:
         msg = "--tolerance-background-max-multiple must be positive"
         raise ValueError(msg)
     if not 0.0 <= args.tolerance_background_alpha <= 1.0:
         msg = "--tolerance-background-alpha must be between 0 and 1"
         raise ValueError(msg)
+
+    configure_publication_style()
+    plt.rcParams["savefig.dpi"] = args.dpi
 
     input_path = resolve_input_path(args.input)
     output_path = resolve_output_path(args.output, input_path)
@@ -683,12 +823,15 @@ def main() -> None:
 
     fig, axes = plt.subplots(
         3, 1,
-        figsize=(10, 11),
+        figsize=(
+            mm_to_inches(args.figure_width_mm),
+            mm_to_inches(args.figure_height_mm),
+        ),
         sharex=True,
     )
     fig.suptitle(
         title_for_mode(args.mode),
-        fontsize=15,
+        fontsize=10.0,
         y=0.97,
     )
     tolerance_cmap = plt.get_cmap(args.tolerance_background_cmap)
@@ -696,8 +839,24 @@ def main() -> None:
     # Start the colormap at half the tolerance band in percentage
     vmin = args.tolerance_band * 50.0
     
+    # Calculate a dynamic vmax based on the 95th percentile of relative errors across all parameters
+    all_rel_errors = []
+    for panel in PARAMETER_PANELS:
+        est = trajectory[panel["estimate_key"]]
+        tru = trajectory[panel["truth_key"]]
+        rel_errs = [
+            (abs(e - t) / max(abs(t), 1.0e-12)) * 100.0 
+            for e, t in zip(est, tru)
+        ]
+        all_rel_errors.extend(rel_errs)
+    
+    vmax = quantile(all_rel_errors, 0.95)
+    
+    # Ensure vmax is at least vmin to avoid normalization errors
+    vmax = max(vmax, vmin * 1.1)
+    
     tolerance_norm = build_tolerance_norm(
-        args.tolerance_background_max_multiple,
+        vmax,
         args.tolerance_background_scale,
         vmin=vmin,
     )
@@ -723,6 +882,7 @@ def main() -> None:
             args.tolerance_background_alpha,
             highlight_convergence=(i == 0),
             center_panel=(i == 0),
+            zoom_inset=(i == 0),
         )
 
     axes[0].set_xlabel("")
@@ -742,20 +902,20 @@ def main() -> None:
     if show_tolerance_background:
         colorbar_norm = tolerance_norm
         fig.subplots_adjust(
-            left=0.17,
-            right=0.96,
-            bottom=0.21,
+            left=0.15,
+            right=0.95,
+            bottom=0.18,
             top=0.92,
-            hspace=0.28,
+            hspace=0.2,
         )
         mappable = ScalarMappable(norm=colorbar_norm, cmap=tolerance_cmap)
         mappable.set_array([])
-        colorbar_axis = fig.add_axes([0.30, 0.055, 0.40, 0.018])
+        colorbar_axis = fig.add_axes([0.3, 0.07, 0.4, 0.015])
         colorbar = fig.colorbar(mappable, cax=colorbar_axis, orientation="horizontal")
         
         colorbar.set_label("Relative error (%)")
         colorbar_ticks = tolerance_colorbar_ticks(
-            args.tolerance_background_max_multiple,
+            vmax,
             args.tolerance_background_scale,
             vmin=vmin,
         )
@@ -776,14 +936,20 @@ def main() -> None:
         fancybox=False,
         framealpha=1.0,
         edgecolor="0.25",
-        bbox_to_anchor=(0.5, 0.105 if show_tolerance_background else 0.02),
+        bbox_to_anchor=(0.5, 0.08 if show_tolerance_background else 0.02),
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=300)
+    fig.savefig(output_path, dpi=args.dpi, facecolor="white")
     plt.close(fig)
 
-    print(f"Wrote plot to {output_path}")
+    width_px = round(mm_to_inches(args.figure_width_mm) * args.dpi)
+    height_px = round(mm_to_inches(args.figure_height_mm) * args.dpi)
+    print(
+        f"Wrote plot to {output_path} "
+        f"({args.figure_width_mm:g} mm x {args.figure_height_mm:g} mm, "
+        f"{args.dpi} dpi, {width_px} x {height_px} px)"
+    )
 
 
 if __name__ == "__main__":

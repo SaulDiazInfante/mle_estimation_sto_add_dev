@@ -118,12 +118,13 @@ make generate-estimator-trajectory-data \
 
 The estimator trajectory plot defaults to `n_obs` on the x-axis, a log
 y-axis, a 0.05% tolerance band, and the observation window from the first
-`n_obs` value in the input file to 40000. Each parameter panel also uses a
-green-yellow-red background colormap over the observation axis for the
-trajectory distance from the true value. By default, colors are normalized per
-panel so each parameter shows its 5th-percentile, median, and 95th-percentile
-relative-error levels. You can change the plotted quantity without calling the
-Python script directly:
+`n_obs` value in the input file to 40000. The PNG export is sized for a
+190 mm full-width Elsevier figure at 500 dpi by default. Each parameter panel
+also uses a green-yellow-red background colormap over the observation axis for
+the trajectory distance from the true value. By default, colors are normalized
+per panel so each parameter shows its 5th-percentile, median, and
+95th-percentile relative-error levels. You can change the plotted quantity
+without calling the Python script directly:
 
 ```bash
 make plot-estimator-trajectory \
@@ -143,6 +144,9 @@ Supported plot controls are:
 - `ESTIMATOR_TRAJECTORY_TOLERANCE_BAND=0.0005`
 - `ESTIMATOR_TRAJECTORY_MIN_OBSERVATION=` uses the first `n_obs` value in the input file
 - `ESTIMATOR_TRAJECTORY_MAX_OBSERVATION=40000`
+- `ESTIMATOR_TRAJECTORY_FIGURE_WIDTH_MM=190`
+- `ESTIMATOR_TRAJECTORY_FIGURE_HEIGHT_MM=225`
+- `ESTIMATOR_TRAJECTORY_DPI=500`
 - `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND=1`
 - `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND_CMAP=RdYlGn_r`
 - `ESTIMATOR_TRAJECTORY_TOLERANCE_BACKGROUND_MAX_MULTIPLE=0.2`
