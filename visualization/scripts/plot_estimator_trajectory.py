@@ -11,7 +11,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Colormap, Normalize, SymLogNorm, PowerNorm
-from matplotlib.ticker import FixedLocator
+from matplotlib.ticker import FixedLocator, FormatStrFormatter, ScalarFormatter
 from matplotlib.patches import Patch
 
 DEFAULT_INPUT_DIR = Path("data/output")
@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--x-axis",
         choices=("n_obs", "time"),
-        default="n_obs",
+        default="time",
         help="Horizontal axis for the trajectory plot.",
     )
     parser.add_argument(
@@ -178,6 +178,52 @@ def configure_publication_style() -> None:
             "savefig.dpi": DEFAULT_DPI,
             "savefig.facecolor": "white",
         }
+    )
+
+
+def use_compact_scientific_yaxis(ax: plt.Axes) -> None:
+    """Show a shared power-of-ten multiplier instead of repeating it per tick."""
+    formatter = ScalarFormatter(useMathText=True)
+    formatter.set_scientific(True)
+    formatter.set_powerlimits((0, 0))
+    formatter.set_useOffset(False)
+    ax.yaxis.set_major_formatter(formatter)
+    ax.yaxis.get_offset_text().set_fontsize(6.5)
+
+
+def use_time_axis_format(ax: plt.Axes) -> None:
+    """Render time ticks as fixed decimals for compact, comparable labels."""
+    ax.xaxis.set_major_formatter(FormatStrFormatter("%.3f"))
+
+
+def add_colorbar_caption_box(
+    ax: plt.Axes,
+    text: str,
+    side: str = "right",
+) -> None:
+    """Attach a tight explanatory box to the side of a horizontal colorbar."""
+    if side not in {"left", "right"}:
+        msg = "side must be 'left' or 'right'"
+        raise ValueError(msg)
+
+    x_pos = 1.04 if side == "right" else -0.04
+    h_align = "left" if side == "right" else "right"
+    ax.text(
+        x_pos,
+        0.5,
+        text,
+        transform=ax.transAxes,
+        ha=h_align,
+        va="center",
+        rotation=0,
+        fontsize=6.5,
+        linespacing=0.95,
+        bbox=dict(
+            boxstyle="round,pad=0.18",
+            facecolor="white",
+            edgecolor="0.35",
+            linewidth=0.6,
+        ),
     )
 
 
@@ -668,6 +714,10 @@ def add_inset_zoom(
     
     # Clean up inset appearance
     ax_ins.tick_params(labelsize=6.0)
+    if isinstance(x_zoom[0], float):
+        use_time_axis_format(ax_ins)
+    if ax_ins.get_yscale() != "log":
+        use_compact_scientific_yaxis(ax_ins)
     ax_ins.grid(True, alpha=0.2, zorder=2)
     
     # Add a box around the inset to distinguish it
@@ -762,6 +812,10 @@ def add_panel(
         fontweight="bold",
     )
     ax.set_ylabel(y_axis_label(mode, symbol))
+    if ax.get_yscale() != "log":
+        use_compact_scientific_yaxis(ax)
+    if isinstance(x_values[0], float):
+        use_time_axis_format(ax)
     ax.grid(True, alpha=0.4, zorder=2)
     return estimate_line, truth_line
 
@@ -890,6 +944,9 @@ def main() -> None:
     axes[2].set_xlabel(x_label)
     if args.x_axis == "n_obs":
         axes[2].set_xlim(min_observation, args.max_observation)
+    else:
+        for axis in axes:
+            use_time_axis_format(axis)
 
     legend_handles = [estimate_handle, truth_handle]
     legend_labels = ["Estimate", reference_label(args.mode)]
@@ -904,16 +961,15 @@ def main() -> None:
         fig.subplots_adjust(
             left=0.15,
             right=0.95,
-            bottom=0.18,
+            bottom=0.22,
             top=0.92,
             hspace=0.2,
         )
         mappable = ScalarMappable(norm=colorbar_norm, cmap=tolerance_cmap)
         mappable.set_array([])
-        colorbar_axis = fig.add_axes([0.3, 0.07, 0.4, 0.015])
+        colorbar_axis = fig.add_axes([0.34, 0.055, 0.38, 0.015])
         colorbar = fig.colorbar(mappable, cax=colorbar_axis, orientation="horizontal")
-        
-        colorbar.set_label("Relative error (%)")
+        colorbar.set_label("")
         colorbar_ticks = tolerance_colorbar_ticks(
             vmax,
             args.tolerance_background_scale,
@@ -921,9 +977,12 @@ def main() -> None:
         )
         colorbar.set_ticks(colorbar_ticks)
         colorbar.set_ticklabels([f"{t:g}%" for t in colorbar_ticks])
-            
-        colorbar.ax.xaxis.set_label_position("top")
         colorbar.ax.xaxis.set_ticks_position("bottom")
+        add_colorbar_caption_box(
+            colorbar_axis,
+            "Percent\nrelative error",
+            side="right",
+        )
     else:
         fig.tight_layout(rect=(0.0, 0.08, 1.0, 0.94))
 
@@ -936,7 +995,7 @@ def main() -> None:
         fancybox=False,
         framealpha=1.0,
         edgecolor="0.25",
-        bbox_to_anchor=(0.5, 0.08 if show_tolerance_background else 0.02),
+        bbox_to_anchor=(0.5, 0.15 if show_tolerance_background else 0.02),
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

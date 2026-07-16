@@ -255,6 +255,71 @@ def _panel_label(label: str, kind: str, time_value: float) -> str:
     return f"{kind_label} ($t = {_format_time(time_value)}$)"
 
 
+def _colorbar_label(kind: str) -> str:
+    if kind == "deterministic":
+        return (
+            r"Det. $u(t,x)=\sum_{\mathbf{k}\in\mathcal{J}} "
+            r"u_k(t)h_k(x), $"
+            r"$\sigma=0$"
+        )
+    return (
+        r"Sto. $u(t,x)=\sum_{\mathbf{k}\in\mathcal{J}} "
+        r"u_k(t)h_k(x), $ "
+        r"$\sigma=0.5$"
+    )
+
+
+def _add_colorbar_caption(
+    fig: plt.Figure,
+    ax: plt.Axes,
+    text: str,
+    side: str = "right",
+) -> None:
+    if side not in {"left", "right"}:
+        msg = "side must be 'left' or 'right'"
+        raise ValueError(msg)
+
+    bbox = ax.get_position()
+    x_pad = 0.032
+    x_pos = bbox.x1 + x_pad if side == "right" else bbox.x0 - x_pad
+    y_pos = bbox.y0 + 0.5 * bbox.height
+    ha = "left" if side == "right" else "right"
+    fig.text(
+        x_pos,
+        y_pos,
+        text,
+        ha=ha,
+        va="center",
+        rotation=90.0,
+        fontsize=7.0,
+        linespacing=0.95,
+        rotation_mode="anchor",
+        bbox=dict(
+            boxstyle="round,pad=0.18",
+            facecolor="white",
+            edgecolor="0.35",
+            linewidth=0.6,
+        ),
+    )
+
+
+def _move_colorbar_ticks(ax: plt.Axes, side: str) -> None:
+    if side not in {"left", "right"}:
+        msg = "side must be 'left' or 'right'"
+        raise ValueError(msg)
+
+    ax.yaxis.set_ticks_position(side)
+    ax.yaxis.set_label_position(side)
+    ax.tick_params(
+        axis="y",
+        which="both",
+        labelleft=(side == "left"),
+        labelright=(side == "right"),
+        left=(side == "left"),
+        right=(side == "right"),
+    )
+
+
 def _configure_fonts() -> None:
     plt.rcParams.update(
         {
@@ -421,26 +486,26 @@ def _draw_surface(
     if np.isclose(l_min, l_max):
         l_min -= 0.05
         l_max += 0.05
-    
+
     geom_min, geom_max = z_limits
     color_min, color_max = color_limits if color_limits is not None else z_limits
     geom_span = max(geom_max - geom_min, 1.0e-14)
     l_span = max(l_max - l_min, 1.0e-14)
-    
+
     if geom_min < 0:
         z_floor = geom_min - 0.25 * geom_span
     else:
         z_floor = geom_min - 0.15 * geom_span
-        
+
     s = max(1, args.stride)
-    
+
     # Floor: Fine (0.35pt) lines and sparse levels (12 default)
     floor_lw = 0.35 if not args.enhanced_floor else 0.7
     floor_levels = args.contour_levels
 
     ax.set_proj_type("ortho")
     ax.set_box_aspect((1.0, 1.0, z_boost))
-    
+
     # Surface color may use a row-shared scale, while z geometry is local.
     norm = plt.Normalize(vmin=color_min, vmax=color_max)
 
@@ -461,21 +526,21 @@ def _draw_surface(
             linewidth=args.wireframe_linewidth,
             alpha=0.32,
         )
-    
+
     # Floor Fill: Grayscale (Greys_r goes from black to white, we want white background)
     # We'll use Greys and ensure transparency or a clean blend.
     l_norm = plt.Normalize(vmin=l_min, vmax=l_max)
     contour_levs = np.linspace(l_min, l_max, floor_levels)
-    
+
     ax.contourf(
         X, Y, field, zdir="z", offset=z_floor,
         levels=contour_levs, cmap="Greys", norm=l_norm, alpha=0.35,
     )
-    
+
     # Floor Borders: Fine BLACK lines (Solid/Dashed)
     pos_levs = [lev for lev in contour_levs if lev > 1e-12]
     neg_levs = [lev for lev in contour_levs if lev < -1e-12]
-    
+
     if pos_levs:
         ax.contour(
             X, Y, field, zdir="z", offset=z_floor,
@@ -500,12 +565,12 @@ def _draw_surface(
     ax.set_xlim(float(np.nanmin(X)), float(np.nanmax(X)))
     ax.set_ylim(float(np.nanmin(Y)), float(np.nanmax(Y)))
     ax.set_zlim(z_floor, l_max + 0.05 * l_span)
-    
+
     ax.set_xlabel("$x$", fontsize=9, labelpad=4)
     ax.set_ylabel("$y$", fontsize=9, labelpad=4)
     ax.set_zlabel("")
     ax.set_title(title, fontsize=10, pad=3)
-    
+
     from matplotlib import ticker
     ax.tick_params(axis="both", labelsize=7.5, pad=2)
     ax.zaxis.set_tick_params(labelsize=7.5, pad=2)
@@ -515,7 +580,7 @@ def _draw_surface(
         ax.zaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
     else:
         ax.zaxis.set_major_formatter(ticker.FormatStrFormatter("%g"))
-        
+
     ax.locator_params(axis="x", nbins=4)
     ax.locator_params(axis="y", nbins=4)
     ax.locator_params(axis="z", nbins=4)
@@ -671,17 +736,31 @@ def _draw_combined(
                 compact=is_final_stochastic,
             )
 
-    cax_det = fig.add_axes([0.90, 0.58, 0.02, 0.32])
+    cax_det = fig.add_axes([0.845, 0.58, 0.018, 0.32])
     cb_det = fig.colorbar(surfaces["deterministic"], cax=cax_det)
     cb_det.ax.tick_params(labelsize=7, width=0.6, pad=2)
-    cb_det.set_label("Det. row scale", fontsize=8, labelpad=3)
-    
-    cax_sto = fig.add_axes([0.90, 0.12, 0.02, 0.32])
+    cb_det.set_label("")
+    _move_colorbar_ticks(cb_det.ax, "left")
+    _add_colorbar_caption(
+        fig,
+        cb_det.ax,
+        _colorbar_label("deterministic"),
+        side="right",
+    )
+
+    cax_sto = fig.add_axes([0.845, 0.12, 0.018, 0.32])
     cb_sto = fig.colorbar(surfaces["stochastic"], cax=cax_sto)
     cb_sto.ax.tick_params(labelsize=7, width=0.6, pad=2)
-    cb_sto.set_label("Sto. row scale", fontsize=8, labelpad=3)
+    cb_sto.set_label("")
+    _move_colorbar_ticks(cb_sto.ax, "left")
+    _add_colorbar_caption(
+        fig,
+        cb_sto.ax,
+        _colorbar_label("stochastic"),
+        side="right",
+    )
 
-    fig.subplots_adjust(left=0.08, right=0.87, bottom=0.08, top=0.94, wspace=0.14, hspace=0.22)
+    fig.subplots_adjust(left=0.08, right=0.82, bottom=0.08, top=0.94, wspace=0.14, hspace=0.22)
     _save_rgb(fig, output_path, args.dpi)
 
 
@@ -720,10 +799,10 @@ def main() -> None:
     _configure_fonts()
     requested_layouts = set(_layout_names(args.layout))
     written_paths: list[Path] = []
-    
+
     if args.cmap: cmaps_by_kind = {"deterministic": args.cmap, "stochastic": args.cmap}
     else: cmaps_by_kind = {"deterministic": args.cmap_deterministic, "stochastic": args.cmap_stochastic}
-        
+
     for variant_name in _variant_names(args.variant):
         variant_dir = output_dir / variant_name
         panel_fields: list[tuple[str, str, float, np.ndarray]] = []
