@@ -429,7 +429,9 @@ def main() -> None:
     fig.text(0.03, 0.70, row_labels[0], rotation=90, va="center", ha="center", fontsize=12)
     fig.text(0.03, 0.28, row_labels[1], rotation=90, va="center", ha="center", fontsize=12)
     colorbar = fig.colorbar(mesh, ax=axes, fraction=0.030, pad=0.040)
-    colorbar.set_label("Solution value")
+    colorbar.set_label("Solution value", rotation=270)
+    colorbar.ax.yaxis.set_label_coords(2.7, 0.5)
+    colorbar.ax.yaxis.label.set_clip_on(False)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.subplots_adjust(

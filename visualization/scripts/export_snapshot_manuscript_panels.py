@@ -280,15 +280,14 @@ def _add_colorbar_caption(
         raise ValueError(msg)
 
     bbox = ax.get_position()
-    x_pad = 0.032
+    x_pad = 0.020
     x_pos = bbox.x1 + x_pad if side == "right" else bbox.x0 - x_pad
     y_pos = bbox.y0 + 0.5 * bbox.height
-    ha = "left" if side == "right" else "right"
     fig.text(
         x_pos,
         y_pos,
         text,
-        ha=ha,
+        ha="center",
         va="center",
         rotation=90.0,
         fontsize=7.0,
