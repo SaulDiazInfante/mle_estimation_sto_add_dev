@@ -415,3 +415,5 @@ See [docs/github_publish.md](docs/github_publish.md) for the exact publish steps
 - Francisco Delgado-Vences
 - Saul Diaz-Infante
 - Gerardo Hernandez-Dueñas
+
+[![DOI](https://doi.org/10.5281/zenodo.21252400)](https://doi.org/10.5281/zenodo.21252400)
