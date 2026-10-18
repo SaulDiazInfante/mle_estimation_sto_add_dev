@@ -263,7 +263,8 @@ snapshots between `SPDE_SNAPSHOT_INITIAL_TIME` and
 A tracked shell environment file is available at
 [`data/input/snapshot_comparison.env`](data/input/snapshot_comparison.env).
 `make run-snapshot-comparison` now automatically sources this file when it is present.
-You can still override any runtime setting manually before running the target.
+Use `SNAPSHOT_CONFIG=path/to/config.env` to select another configuration, or
+`SNAPSHOT_CONFIG=/dev/null` to use only environment variables and application defaults.
 
 To export the same animation data for ParaView, run:
 

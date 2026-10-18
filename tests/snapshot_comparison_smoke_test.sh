@@ -28,7 +28,7 @@ env \
     SPDE_SNAPSHOT_TIMES=0,0.5,2.0 \
     SPDE_TIME_STEP=1.0e-2 \
     make -C "$ROOT_DIR" run-snapshot-comparison \
-    TIMESTAMP="$PLOT_TIMESTAMP"
+    TIMESTAMP="$PLOT_TIMESTAMP" SNAPSHOT_CONFIG=/dev/null
 
 env \
     MPLCONFIGDIR="$MPL_CONFIG_DIR" \
@@ -54,7 +54,7 @@ env \
     SPDE_SNAPSHOT_FINAL_TIME=2.0 \
     SPDE_TIME_STEP=1.0e-2 \
     make -C "$ROOT_DIR" run-snapshot-comparison \
-    TIMESTAMP="$VIDEO_TIMESTAMP" \
+    TIMESTAMP="$VIDEO_TIMESTAMP" SNAPSHOT_CONFIG=/dev/null \
     SNAPSHOT_FRAME_COUNT=5
 
 env \

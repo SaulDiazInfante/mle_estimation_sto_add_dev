@@ -101,7 +101,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--tolerance-background-cmap",
-        default="berlin",
+        default="RdYlGn_r",
         help="Matplotlib colormap for the tolerance-distance background.",
     )
     parser.add_argument(
@@ -990,7 +990,7 @@ def main() -> None:
         legend_handles,
         legend_labels,
         loc="lower center",
-        ncols=len(legend_handles),
+        ncol=len(legend_handles),
         frameon=True,
         fancybox=False,
         framealpha=1.0,
