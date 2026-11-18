@@ -7,16 +7,13 @@ convection-diffusion equation*, and is organized after the **Diligence**
 competency of the 4D AI Fluency framework: creation, transparency, and
 deployment diligence.
 
-> **TODO (authors):** confirm every item marked `[confirm]` before the next
-> tagged release.
-
 ## Tools
 
 | Tool | Scope of use | Trace in this repository |
 | --- | --- | --- |
 | Warp terminal, Oz agent | Doxygen and GitHub Actions documentation workflows; snapshot plotting and 3-D rugosity targets | `Co-Authored-By: Oz` trailer on `a1f1265`, `57e53c0`, `0275fc0`, `bee2d99` |
-| Gemini Code Assist | Manuscript-quality figure styling in `visualization/scripts/` `[confirm]` | `.aiexclude` |
-| OpenAI Codex | Software engineering tasks `[confirm scope]` | `.codex/` |
+| Gemini Code Assist | Manuscript-quality figure styling in `visualization/scripts/` | `.aiexclude` |
+| OpenAI Codex | Software engineering tasks | `.codex/` |
 | Grammarly | Grammar, spelling, and readability of the manuscript text only; no scientific content | Manuscript, not this repository |
 | Claude Code (Anthropic) | Drafting this statement and the manuscript AI declaration; the skew-symmetry unit test | This file; `tests/unit/test_core.f90` |
 | Unattributed LLM sessions | Progress/ETA reporting and run logging; ParaView noise-effect video | `IMPLEMENTATION_SUMMARY.md`, `SESSION_RESUME_*` |
@@ -34,7 +31,7 @@ system, derive the exact entries of the advection matrix, derive the maximum
 likelihood estimators, or prove their consistency and asymptotic normality.
 The numerical kernels in `src/modules/spectral_operators_mod.f90`,
 `sde_simulation_mod.f90`, and `parameter_ml_estimation_mod.f90` implement
-formulas derived by the authors `[confirm]`.
+formulas derived by the authors.
 
 Large data, logs, and generated outputs are excluded from AI indexing through
 `.aiexclude`.
