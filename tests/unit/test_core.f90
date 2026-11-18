@@ -12,6 +12,8 @@ program test_core
     use solution_reconstruction_mod, only: evaluate_cosine_mode
     use solution_reconstruction_mod, only: reconstruct_solution_field
     use solution_reconstruction_mod, only: reconstruct_solution_value
+    use model_types_mod, only: spectral_operator_set_t
+    use spectral_operators_mod, only: assemble_problem_operators
     implicit none
 
     call test_state_dimension()
@@ -21,6 +23,7 @@ program test_core
     call test_endpoint_plot_coordinates()
     call test_cosine_mode_normalization()
     call test_modal_solution_reconstruction()
+    call test_interaction_matrix_skew_symmetry()
 
     write (*, '(a)') "Unit tests passed."
 
@@ -173,5 +176,52 @@ contains
         call assert_close(field(1, 1), value, 1.0e-12_dp, &
             "field reconstruction should match point reconstruction")
     end subroutine test_modal_solution_reconstruction
+
+    subroutine test_interaction_matrix_skew_symmetry()
+        call check_skew_symmetry(12, 12, 1, 1, 5.0_dp, 5.0_dp, &
+            "fundamental velocity mode on a square domain")
+        call check_skew_symmetry(10, 14, 2, 3, 5.0_dp, 3.0_dp, &
+            "higher velocity mode on a rectangular domain")
+    end subroutine test_interaction_matrix_skew_symmetry
+
+    !> Checks that the advection matrix satisfies A + A^T = 0 to machine
+    !! precision, as required by the divergence-free velocity field.
+    subroutine check_skew_symmetry(&
+        nx, ny, velocity_mode_x, velocity_mode_y, length_x, length_y, label &
+    )
+        integer, intent(in) :: nx
+        integer, intent(in) :: ny
+        integer, intent(in) :: velocity_mode_x
+        integer, intent(in) :: velocity_mode_y
+        real(dp), intent(in) :: length_x
+        real(dp), intent(in) :: length_y
+        character(len=*), intent(in) :: label
+
+        type(spatial_grid_t) :: grid
+        type(spectral_operator_set_t) :: operators
+        real(dp) :: matrix_scale
+        real(dp) :: symmetric_defect
+
+        grid%nx = nx
+        grid%ny = ny
+        grid%velocity_mode_x = velocity_mode_x
+        grid%velocity_mode_y = velocity_mode_y
+        grid%length_x = length_x
+        grid%length_y = length_y
+
+        call assemble_problem_operators(grid, operators)
+
+        matrix_scale = maxval(abs(operators%interaction_matrix))
+        symmetric_defect = maxval(abs( &
+            operators%interaction_matrix &
+            + transpose(operators%interaction_matrix) &
+        ))
+
+        call assert_true(matrix_scale > 0.0_dp, &
+            "interaction matrix should not vanish: " // label)
+        call assert_close(symmetric_defect / matrix_scale, 0.0_dp, &
+            64.0_dp * epsilon(1.0_dp), &
+            "interaction matrix should be skew symmetric: " // label)
+    end subroutine check_skew_symmetry
 
 end program test_core
