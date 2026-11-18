@@ -1,5 +1,7 @@
 # Stochastic Convection-Diffusion MLE
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21252400.svg)](https://doi.org/10.5281/zenodo.21252400)
+
 This repository contains the maintained Fortran implementation for simulating
 the spectral Galerkin system associated with a stochastic convection-diffusion
 equation, estimating model parameters, and visualizing estimator trajectories.
@@ -410,11 +412,122 @@ Run `make setup-git-hooks` once per clone to activate the local pre-commit size 
 
 See [docs/github_publish.md](docs/github_publish.md) for the exact publish steps and [docs/testing_strategy.md](docs/testing_strategy.md) for the TDD-oriented test layout.
 
+## Contributing through branches and pull requests
+
+All changes to `main` must go through a pull request (PR). Collaborators work on
+separate branches; Saul Diaz-Infante reviews the proposed changes and decides
+whether to merge them. The active ruleset restricts updates to `main` to
+repository administrators through pull requests. Do not push directly to `main`.
+
+The steps below assume you have accepted a collaborator invitation and have
+authenticated with GitHub for pushing changes. Access is granted to the whole
+repository, not only to `data/input/`. See [CONTRIBUTING.md](CONTRIBUTING.md) for
+coding and testing expectations.
+
+### 1. Clone the repository
+
+Run this once to create your local copy:
+
+```bash
+git clone https://github.com/SaulDiazInfante/mle_estimation_sto_add_dev.git
+cd mle_estimation_sto_add_dev
+```
+
+If you already have a clone, open that directory instead of cloning it again.
+
+### 2. Start a branch from the latest main
+
+First check that your working tree is clean. Commit or otherwise preserve any
+existing work before switching branches.
+
+```bash
+git status
+git switch main
+git pull --ff-only origin main
+git switch -c feature/update-input-parameters
+```
+
+Replace `feature/update-input-parameters` with a short name describing your
+change, such as `fix/estimator-validation` or `docs/explain-snapshot-settings`.
+Use a separate branch for each independent change.
+
+### 3. Make, test, and commit your changes
+
+Edit the relevant files and review the diff:
+
+```bash
+git diff
+make test
+```
+
+For code changes, add or update tests whenever practical. In the PR, report which
+tests you ran and their results; if you could not run them, explain why.
+
+Stage only the intended files. For example, after changing the tracked snapshot
+configuration:
+
+```bash
+git add data/input/snapshot_comparison.env
+git diff --cached
+git commit -m "Update snapshot comparison input parameters"
+```
+
+Replace the example path and commit message with those appropriate to your
+change. Do not commit generated outputs, large datasets, credentials, or personal
+data; follow the [Git tracking policy](#git-tracking-policy).
+
+### 4. Push your branch
+
+```bash
+git push -u origin feature/update-input-parameters
+```
+
+Use the same branch name you created in step 2. This publishes your branch,
+not a change to `main`.
+
+### 5. Open a pull request
+
+1. Open the [repository on GitHub](https://github.com/SaulDiazInfante/mle_estimation_sto_add_dev).
+2. Click **Compare & pull request** for your branch, or go to
+   **Pull requests → New pull request**.
+3. Set **base** to `main` and **compare** to your feature branch.
+4. Describe what changed, why it is needed, the tests performed, and any impact
+   on numerical results or performance. Link a related issue when applicable.
+5. Click **Create pull request** and request a review from `SaulDiazInfante`.
+
+Alternatively, if the GitHub CLI is installed and authenticated:
+
+```bash
+gh pr create --base main --head feature/update-input-parameters \
+  --title "Update snapshot comparison input parameters" \
+  --body "Describe the changes, motivation, and test results here."
+```
+
+To address review comments, make additional commits on the same branch and push
+again. The existing PR updates automatically; you do not need to open another PR.
+
+### 6. Owner review and merge
+
+Saul reviews the **Files changed**, checks the test results and GitHub Actions,
+and may request corrections. Only an administrator can merge into `main` under
+the current ruleset. Contributors should wait for that decision rather than
+attempting to merge or push to `main` themselves.
+
+After the PR is merged, update your local main:
+
+```bash
+git switch main
+git pull --ff-only origin main
+```
+
+If you do not have collaborator access, you can still contribute because the
+repository is public: **fork** it, create and push a branch in your own fork,
+then open a PR targeting `SaulDiazInfante/mle_estimation_sto_add_dev:main`.
+In that workflow, `origin` should refer to your fork, not the original repository.
+
 ## Collaborators
 
 - Fernando Baltazar-Larios
 - Francisco Delgado-Vences
 - Saul Diaz-Infante
 - Gerardo Hernandez-Dueñas
-
-[![DOI](https://doi.org/10.5281/zenodo.21252400)](https://doi.org/10.5281/zenodo.21252400)
