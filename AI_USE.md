@@ -16,7 +16,7 @@ deployment diligence.
 | OpenAI Codex | Software engineering tasks | `.codex/` |
 | Grammarly | Grammar, spelling, and readability of the manuscript text only; no scientific content | Manuscript, not this repository |
 | Claude Code (Anthropic) | Drafting this statement and the manuscript AI declaration; the skew-symmetry unit test | This file; `tests/unit/test_core.f90` |
-| Unattributed LLM sessions | Progress/ETA reporting and run logging; ParaView noise-effect video | `IMPLEMENTATION_SUMMARY.md`, `SESSION_RESUME_*` |
+| Unattributed LLM sessions (OpenAI Codex) | Progress/ETA reporting and run logging; ParaView noise-effect video | `IMPLEMENTATION_SUMMARY.md`, `SESSION_RESUME_*` |
 
 ## Creation diligence: what AI was and was not used for
 
