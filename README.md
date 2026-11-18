@@ -525,6 +525,12 @@ repository is public: **fork** it, create and push a branch in your own fork,
 then open a PR targeting `SaulDiazInfante/mle_estimation_sto_add_dev:main`.
 In that workflow, `origin` should refer to your fork, not the original repository.
 
+## AI use
+
+AI-assisted tools were used for software engineering tasks in this
+repository. See [AI_USE.md](AI_USE.md) for the tools, their scope, and how
+their output is verified.
+
 ## Collaborators
 
 - Fernando Baltazar-Larios
