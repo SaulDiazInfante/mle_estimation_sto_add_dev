@@ -1,6 +1,7 @@
 # Stochastic Convection-Diffusion MLE
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21252400.svg)](https://doi.org/10.5281/zenodo.21252400)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21252399.svg)](https://doi.org/10.5281/zenodo.21252399)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](LICENSE)
 
 This repository contains the maintained Fortran implementation for simulating
 the spectral Galerkin system associated with a stochastic convection-diffusion
@@ -536,4 +537,27 @@ their output is verified.
 - Fernando Baltazar-Larios
 - Francisco Delgado-Vences
 - Saul Diaz-Infante
-- Gerardo Hernandez-Dueñas
+- Gerardo Hernández-Dueñas
+
+## Citation
+
+If you use this software, please cite the accompanying article and the
+software release. GitHub's **Cite this repository** button (generated from
+[`CITATION.cff`](CITATION.cff)) provides APA and BibTeX entries.
+
+- Article: F. Baltazar-Larios, F. Delgado-Vences, S. Diaz-Infante, and
+  G. Hernández-Dueñas, *Simulation and maximum likelihood estimation for a
+  stochastic convection-diffusion equation*, submitted to Communications in
+  Nonlinear Science and Numerical Simulation (2026).
+- Software: [doi:10.5281/zenodo.21252399](https://doi.org/10.5281/zenodo.21252399)
+  (concept DOI, always resolves to the latest release; v0.2.0-alpha is
+  [doi:10.5281/zenodo.21252400](https://doi.org/10.5281/zenodo.21252400)).
+
+## License
+
+The source code is released under the [BSD 3-Clause License](LICENSE).
+
+Figures, videos, and datasets generated with this software and released with
+the accompanying article are licensed under the
+[Creative Commons Attribution 4.0 International License (CC-BY-4.0)](https://creativecommons.org/licenses/by/4.0/).
+Reuse them freely provided you cite the article and the software DOI.

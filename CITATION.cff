@@ -1,0 +1,72 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite both the software and the
+  accompanying article using the metadata below.
+type: software
+title: >-
+  Simulation and maximum likelihood estimation for a stochastic
+  convection-diffusion equation: Fortran spectral Galerkin implementation
+abstract: >-
+  Fortran implementation of a spectral Galerkin discretization of a stochastic
+  convection-diffusion equation with additive noise. It simulates the modal
+  SDE system with the Euler-Maruyama scheme, computes maximum likelihood
+  estimators of the diffusion and convection coefficients, runs Monte Carlo
+  studies, and provides scripts that reproduce the figures of the article.
+authors:
+  - given-names: Fernando
+    family-names: Baltazar-Larios
+    affiliation: Departamento de Matemáticas, Facultad de Ciencias, UNAM
+    orcid: https://orcid.org/0000-0001-8292-3615
+  - given-names: Francisco
+    family-names: Delgado-Vences
+    affiliation: Departament de Matemàtiques, Universitat Autònoma de Barcelona
+    orcid: https://orcid.org/0000-0002-0880-720X
+  - given-names: Saul
+    family-names: Diaz-Infante
+    affiliation: SECIHTI Research Fellow, Universidad de Sonora
+    orcid: https://orcid.org/0000-0001-9559-1293
+  - given-names: Gerardo
+    family-names: Hernández-Dueñas
+    affiliation: Instituto de Matemáticas, UNAM
+    orcid: https://orcid.org/0000-0002-4845-6723
+repository-code: https://github.com/SaulDiazInfante/mle_estimation_sto_add_dev
+license: BSD-3-Clause
+version: 0.2.0-alpha
+date-released: 2026-07-08
+doi: 10.5281/zenodo.21252399
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.21252399
+    description: Concept DOI (resolves to the latest release)
+  - type: doi
+    value: 10.5281/zenodo.21252400
+    description: Version DOI for v0.2.0-alpha
+keywords:
+  - stochastic partial differential equations
+  - convection-diffusion equation
+  - parameter estimation
+  - maximum likelihood estimation
+  - spectral Galerkin method
+  - Euler-Maruyama
+  - Fortran
+preferred-citation:
+  type: article
+  title: >-
+    Simulation and maximum likelihood estimation for a stochastic
+    convection-diffusion equation
+  authors:
+    - given-names: Fernando
+      family-names: Baltazar-Larios
+      orcid: https://orcid.org/0000-0001-8292-3615
+    - given-names: Francisco
+      family-names: Delgado-Vences
+      orcid: https://orcid.org/0000-0002-0880-720X
+    - given-names: Saul
+      family-names: Diaz-Infante
+      orcid: https://orcid.org/0000-0001-9559-1293
+    - given-names: Gerardo
+      family-names: Hernández-Dueñas
+      orcid: https://orcid.org/0000-0002-4845-6723
+  journal: Communications in Nonlinear Science and Numerical Simulation
+  status: submitted
+  year: 2026
