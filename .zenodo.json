@@ -1,0 +1,46 @@
+{
+  "title": "Simulation and maximum likelihood estimation for a stochastic convection-diffusion equation: Fortran spectral Galerkin implementation",
+  "upload_type": "software",
+  "description": "<p>Fortran implementation of a spectral Galerkin discretization of a stochastic convection-diffusion equation with additive noise, including Euler-Maruyama simulation, maximum likelihood estimation of the diffusion and convection coefficients, Monte Carlo studies, and the scripts that reproduce the figures of the article <em>Simulation and maximum likelihood estimation for a stochastic convection-diffusion equation</em> (submitted to Communications in Nonlinear Science and Numerical Simulation).</p>",
+  "creators": [
+    {
+      "name": "Baltazar-Larios, Fernando",
+      "affiliation": "Departamento de Matemáticas, Facultad de Ciencias, UNAM",
+      "orcid": "0000-0001-8292-3615"
+    },
+    {
+      "name": "Delgado-Vences, Francisco",
+      "affiliation": "Departament de Matemàtiques, Universitat Autònoma de Barcelona",
+      "orcid": "0000-0002-0880-720X"
+    },
+    {
+      "name": "Diaz-Infante, Saul",
+      "affiliation": "SECIHTI Research Fellow, Universidad de Sonora",
+      "orcid": "0000-0001-9559-1293"
+    },
+    {
+      "name": "Hernández-Dueñas, Gerardo",
+      "affiliation": "Instituto de Matemáticas, UNAM",
+      "orcid": "0000-0002-4845-6723"
+    }
+  ],
+  "license": "BSD-3-Clause",
+  "access_right": "open",
+  "keywords": [
+    "stochastic partial differential equations",
+    "convection-diffusion equation",
+    "parameter estimation",
+    "maximum likelihood estimation",
+    "spectral Galerkin method",
+    "Euler-Maruyama",
+    "Fortran"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/SaulDiazInfante/mle_estimation_sto_add_dev",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    }
+  ]
+}

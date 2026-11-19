@@ -15,7 +15,7 @@ deployment diligence.
 | Gemini Code Assist | Manuscript-quality figure styling in `visualization/scripts/` | `.aiexclude` |
 | OpenAI Codex | Software engineering tasks | `.codex/` |
 | Grammarly | Grammar, spelling, and readability of the manuscript text only; no scientific content | Manuscript, not this repository |
-| Claude Code (Anthropic) | Drafting this statement and the manuscript AI declaration; the skew-symmetry unit test | This file; `tests/unit/test_core.f90` |
+| Claude Code (Anthropic) | Drafting this statement and the manuscript AI declaration; the skew-symmetry unit test; license and citation metadata | This file; `tests/unit/test_core.f90`; `LICENSE`, `CITATION.cff`, `.zenodo.json` |
 | Unattributed LLM sessions (OpenAI Codex) | Progress/ETA reporting and run logging; ParaView noise-effect video | `IMPLEMENTATION_SUMMARY.md`, `SESSION_RESUME_*` |
 
 ## Creation diligence: what AI was and was not used for
